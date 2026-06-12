@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Tools — Dashboard Mockup</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <style>
+    :root {
+      /* v4 exchange light theme — the token contract; charts read --grid and --heat-* at render time */
+      --bg: #f2f5f9;
+      --panel: #ffffff;
+      --panel2: #f3f6fa;
+      --line: #dde4ec;
+      --ink: #0c1f3f;
+      --muted: #5a6b80;
+      --accent: #0b6fff;
+      --accent2: #0a58c4;
+      --green: #0e8a4d;
+      --red: #d6342c;
+      --amber: #b07b0a;
+      --chip: #e9eff7;
+      --grid: #e4eaf1;
+      --heat-lo: #efa8a1;
+      --heat-mid: #f4f6f9;
+      --heat-hi: #8fd3ab;
+    }
+
+    /* dark theme behind the toggle — original terminal palette */
+    [data-theme="dark"] {
+      --bg: #0f1419;
+      --panel: #1a2129;
+      --panel2: #222b35;
+      --line: #2c3744;
+      --ink: #e6edf3;
+      --muted: #8b98a5;
+      --accent: #4f9dff;
+      --accent2: #3a7fd5;
+      --green: #3fb950;
+      --red: #f85149;
+      --amber: #d29922;
+      --chip: #2d3742;
+      --grid: #222b35;
+      --heat-lo: #6e2227;
+      --heat-mid: #222b35;
+      --heat-hi: #1d5c34;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none
+    }
+
+    .app {
+      display: flex;
+      min-height: 100vh
+    }
+
+    /* sidebar — the exchange pattern: dark navy rail, white data surfaces */
+    .side {
+      width: 230px;
+      background: #0c2340;
+      border-right: 1px solid #0c2340;
+      padding: 20px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px 18px;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -.2px;
+      color: #fff
+    }
+
+    .brand .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent)
+    }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: #c7d3e4;
+      margin-bottom: 2px;
+      cursor: pointer;
+      font-weight: 500
+    }
+
+    .nav a:hover {
+      background: #16335c
+    }
+
+    .nav a.active {
+      background: var(--accent);
+      color: #fff
+    }
+
+    .nav .ico {
+      width: 18px;
+      text-align: center
+    }
+
+    .side .note {
+      position: absolute;
+      bottom: 16px;
+      left: 14px;
+      right: 14px;
+      font-size: 11px;
+      color: #8fa3bd;
+      line-height: 1.5;
+      border-top: 1px solid #1d3d68;
+      padding-top: 12px
+    }
+
+    .themetoggle {
+      width: 100%;
+      margin: 0 0 14px;
+      background: transparent;
+      border: 1px solid #2a4a78;
+      color: #c7d3e4;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer
+    }
+
+    .themetoggle:hover {
+      background: #16335c
+    }
+
+    [data-theme="dark"] .side {
+      background: #0b0f14;
+      border-right-color: var(--line)
+    }
+
+    [data-theme="dark"] .brand {
+      color: var(--ink)
+    }
+
+    [data-theme="dark"] .side .nav a {
+      color: var(--muted)
+    }
+
+    [data-theme="dark"] .side .nav a:hover {
+      background: var(--panel)
+    }
+
+    [data-theme="dark"] .side .nav a.active {
+      background: var(--accent);
+      color: #0b0f14;
+      font-weight: 700
+    }
+
+    [data-theme="dark"] .side .note {
+      color: var(--muted);
+      border-top-color: var(--line)
+    }
+
+    [data-theme="dark"] .themetoggle {
+      border-color: var(--line);
+      color: var(--muted)
+    }
+
+    [data-theme="dark"] .themetoggle:hover {
+      background: var(--panel)
+    }
+
+    .badge-roloff {
+      display: inline-block;
+      background: #fdf2dc;
+      color: #8a6400;
+      border: 1px solid #f0dcae;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-weight: 600
+    }
+
+    /* main */
+    .main {
+      flex: 1;
+      padding: 26px 32px;
+      max-width: 1200px
+    }
+
+    .head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px
+    }
+
+    .head h1 {
+      font-size: 24px;
+      margin: 0;
+      font-weight: 800;
+      letter-spacing: -.4px
+    }
+
+    .head .sub {
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .view {
+      display: none
+    }
+
+    .view.active {
+      display: block
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, .04)
+    }
+
+    .card .lbl {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .6px
+    }
+
+    .card .val {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px
+    }
+
+    .card .val.green {
+      color: var(--green)
+    }
+
+    .card .val.red {
+      color: var(--red)
+    }
+
+    .card .delta {
+      font-size: 12px;
+      margin-top: 4px;
+      color: var(--muted)
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, .04)
+    }
+
+    .panel h3 {
+      margin: 0 0 14px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px
+    }
+
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    tbody tr:nth-child(odd) {
+      background: #f7f8fa
+    }
+
+    tr:last-child td {
+      border-bottom: none
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600
+    }
+
+    .pill.win {
+      background: #e3f4ea;
+      color: var(--green)
+    }
+
+    .pill.loss {
+      background: #fce8e8;
+      color: var(--red)
+    }
+
+    .pill.open {
+      background: #e4effb;
+      color: var(--accent)
+    }
+
+    .tick {
+      color: var(--green);
+      font-weight: 700
+    }
+
+    .cross {
+      color: var(--red);
+      font-weight: 700
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px
+    }
+
+    .btn:hover {
+      background: var(--accent2)
+    }
+
+    .btn.ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink)
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .field input,
+    .field select {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink);
+      padding: 8px 10px;
+      font-size: 13px
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 0;
+      font-size: 13px
+    }
+
+    .check input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent)
+    }
+
+    .gate {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 12px;
+      border: 1px solid
+    }
+
+    .gate.red {
+      background: #fdeced;
+      border-color: #f3c2c5
+    }
+
+    .gate .lampoff {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 18px rgba(248, 81, 73, .5);
+      flex: none
+    }
+
+    .gate .ttl {
+      font-weight: 700;
+      font-size: 15px
+    }
+
+    .gate .why {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px
+    }
+
+    .scangrid th.crit {
+      text-align: center
+    }
+
+    .scangrid td.crit {
+      text-align: center
+    }
+
+    .topcard {
+      background: linear-gradient(180deg, #f3f9ff, #eaf3fc);
+      border: 1px solid #bcdcf5;
+      border-radius: 12px;
+      padding: 18px
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+      margin-top: 12px
+    }
+
+    .kv .k {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .kv .v {
+      font-weight: 600
+    }
+
+    .banner {
+      background: #eaf3fb;
+      border: 1px solid #cfe3f5;
+      color: #1a4d80;
+      padding: 10px 14px;
+      border-radius: 9px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .warn {
+      background: #fdf4e3;
+      border: 1px solid #f0dcae;
+      color: #8a6400
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    h4 {
+      margin: 16px 0 8px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    /* ===== v2 additions ===== */
+
+    /* jargon tooltips — hover any dotted term */
+    .term {
+      border-bottom: 1px dotted var(--accent);
+      cursor: help;
+      position: relative
+    }
+
+    .term:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 0;
+      bottom: 130%;
+      background: #11243f;
+      border: 1px solid #11243f;
+      padding: 9px 11px;
+      border-radius: 8px;
+      width: 250px;
+      font-size: 12px;
+      font-weight: 400;
+      color: #fff;
+      line-height: 1.55;
+      z-index: 30;
+      box-shadow: 0 8px 24px rgba(16, 24, 40, .18);
+      text-transform: none;
+      letter-spacing: 0;
+      white-space: normal
+    }
+
+    /* profit-capture progress */
+    .progress {
+      height: 9px;
+      background: #eef1f5;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden
+    }
+
+    .progress>i {
+      display: block;
+      height: 100%;
+      background: var(--green)
+    }
+
+    .progress>i.amber {
+      background: var(--amber)
+    }
+
+    /* exit-trigger rows */
+    .trig {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px
+    }
+
+    .trig:last-child {
+      border-bottom: none
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 5px;
+      flex: none
+    }
+
+    .tag.ok {
+      background: #e3f4ea;
+      color: var(--green)
+    }
+
+    .tag.watch {
+      background: #fdf4e0;
+      color: var(--amber)
+    }
+
+    .tag.hit {
+      background: #fce8e8;
+      color: var(--red)
+    }
+
+    /* position cards */
+    .poshead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .poshead .ttl {
+      font-weight: 700;
+      font-size: 15px
+    }
+
+    .poshead .meta {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    /* roll chains */
+    td.chain {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .chainlink {
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    tr.campaign td {
+      background: #eef3fa;
+      font-weight: 600
+    }
+
+    /* required field marker */
+    .req {
+      color: var(--red);
+      font-weight: 700
+    }
+
+    .field.locked input,
+    .field.locked select {
+      border-color: #e0b54a;
+      background: #fffdf6
+    }
+
+    /* glossary */
+    .gloss {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px
+    }
+
+    .gloss .g {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px
+    }
+
+    .g .t {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--accent)
+    }
+
+    .g .d {
+      color: #3a4452;
+      font-size: 13px;
+      line-height: 1.55
+    }
+
+    /* learn path steps */
+    .step {
+      display: flex;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line)
+    }
+
+    .step:last-child {
+      border-bottom: none
+    }
+
+    .step .n {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--chip);
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex: none
+    }
+
+    .step .n.done {
+      background: #e3f4ea;
+      color: var(--green)
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 2px
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5
+    }
+
+    /* ===== v4 additions ===== */
+
+    .gate.green {
+      background: #eef8f1;
+      border-color: #bfe5cd
+    }
+
+    .softtext {
+      color: #33465e
+    }
+
+    /* chart loading skeleton — removed when Plotly.react resolves */
+    .skel {
+      position: relative;
+      background: #e9eef5;
+      border-radius: 8px;
+      overflow: hidden
+    }
+
+    .skel::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(12, 31, 63, .06), transparent);
+      animation: shimmer 1.2s infinite
+    }
+
+    @keyframes shimmer {
+      100% {
+        transform: translateX(100%)
+      }
+    }
+
+    /* T+0 slider controls under the payoff charts */
+    .chartctl {
+      display: flex;
+      gap: 18px;
+      margin-top: 10px;
+      flex-wrap: wrap
+    }
+
+    .chartctl label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .chartctl output {
+      font-weight: 700;
+      color: var(--ink);
+      min-width: 34px;
+      font-variant-numeric: tabular-nums
+    }
+
+    .chartctl input[type=range] {
+      width: 140px;
+      accent-color: var(--accent)
+    }
+
+    /* ===== dark-theme component overrides (components with literal light hexes) ===== */
+    [data-theme="dark"] .card,
+    [data-theme="dark"] .panel {
+      box-shadow: none
+    }
+
+    [data-theme="dark"] tbody tr:nth-child(odd) {
+      background: rgba(255, 255, 255, .02)
+    }
+
+    [data-theme="dark"] .badge-roloff {
+      background: #3a2a12;
+      border-color: #5a4318;
+      color: var(--amber)
+    }
+
+    [data-theme="dark"] .pill.win { background: #0f2e16 }
+    [data-theme="dark"] .pill.loss { background: #2e1012 }
+    [data-theme="dark"] .pill.open { background: #13283f }
+
+    [data-theme="dark"] .tag.ok { background: #0f2e16 }
+    [data-theme="dark"] .tag.watch { background: #3a2a12 }
+    [data-theme="dark"] .tag.hit { background: #2e1012 }
+
+    [data-theme="dark"] .banner {
+      background: #13283f;
+      border-color: #1d3a57;
+      color: #bcd6f5
+    }
+
+    [data-theme="dark"] .warn {
+      background: #1f1a10;
+      border-color: #4a3c16;
+      color: #e3c878
+    }
+
+    [data-theme="dark"] .gate.red {
+      background: #1f1314;
+      border-color: #5a2326
+    }
+
+    [data-theme="dark"] .gate.green {
+      background: #0d1f14;
+      border-color: #1d4a2c
+    }
+
+    [data-theme="dark"] .topcard {
+      background: linear-gradient(180deg, #16202b, #131a22);
+      border-color: #1d3a57
+    }
+
+    [data-theme="dark"] .term:hover::after {
+      background: #0b0f14;
+      border-color: var(--accent2)
+    }
+
+    [data-theme="dark"] .progress { background: #10161d }
+
+    [data-theme="dark"] .skel { background: #10161d }
+
+    [data-theme="dark"] .skel::after {
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .05), transparent)
+    }
+
+    [data-theme="dark"] tr.campaign td { background: #161d26 }
+
+    [data-theme="dark"] .softtext { color: #cdd8e3 }
+
+    [data-theme="dark"] .g .d { color: #cdd8e3 }
+
+    [data-theme="dark"] .field.locked input,
+    [data-theme="dark"] .field.locked select {
+      border-color: #4a3c16;
+      background: var(--panel2)
+    }
+
+    [data-theme="dark"] .step .n.done {
+      background: #0f2e16
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside class="side">
+      <div class="brand"><span class="dot"></span> Trading Tools</div>
+      <button class="themetoggle" id="themetoggle">☾ Switch to dark</button>
+      <nav class="nav">
+        <a data-view="positions" class="active"><span class="ico">🎯</span> Positions</a>
+        <a data-view="journal"><span class="ico">📓</span> Journal</a>
+        <a data-view="analytics"><span class="ico">📈</span> Analytics</a>
+        <a data-view="backtester"><span class="ico">🧪</span> Backtester</a>
+        <a data-view="scanner"><span class="ico">🔍</span> Scanner</a>
+        <a data-view="learn"><span class="ico">🎓</span> Learn</a>
+      </nav>
+      <div class="note">
+        <span class="badge-roloff">MOCKUP</span><br><br>
+        Static visual prototype with sample data. No live data, no backend, no trades placed.<br><br>
+        Read-only by design — the human stays in the execution loop.
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- ===== POSITIONS (new home) ===== -->
+      <section class="view active" id="positions">
+        <div class="head">
+          <div>
+            <h1>Positions</h1>
+            <div class="sub">The daily 5-minute check. Spreads are managed in the middle, not just opened and closed.</div>
+          </div>
+          <div class="sub">Paper account: <b>$35,000</b></div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="lbl">Open <span class="term" data-tip="The most you can lose across all open positions if every trade hits max loss at once.">max loss</span></div>
+            <div class="val red">$22,148</div>
+            <div class="delta">63% of account ⚠</div>
+          </div>
+          <div class="card">
+            <div class="lbl">Per-trade risk cap (2%)</div>
+            <div class="val">$700</div>
+            <div class="delta">SPY <span class="tick">✓</span> · XLK <span class="cross">✗</span></div>
+          </div>
+          <div class="card">
+            <div class="lbl"><span class="term" data-tip="Capital your broker sets aside while positions are open. Cash-secured puts reserve the full strike value; defined-risk spreads only reserve the spread width.">Buying power</span> free</div>
+            <div class="val">$12,540</div>
+            <div class="delta">of $35,000</div>
+          </div>
+          <div class="card">
+            <div class="lbl">Next decision point</div>
+            <div class="val" style="font-size:20px">17 days</div>
+            <div class="delta">SPY hits <span class="term" data-tip="Days to expiration. A common rule closes or rolls spreads at 21 DTE, before time decay risk flips against you.">21 DTE</span></div>
+          </div>
+        </div>
+
+        <div class="banner warn">⚠️ <span>The XLK cash-secured put risks <b>$21,790</b> — 31× the per-trade cap. This is the difference between
+            undefined and defined risk: a $215/$210 <span class="term" data-tip="Sell one put, buy a cheaper put below it. The bought put caps your loss at the width between strikes minus the credit collected.">put credit spread</span> would cap risk near $390 for a similar thesis.</span></div>
+
+        <!-- SPY position card -->
+        <div class="panel">
+          <div class="poshead">
+            <div>
+              <div class="ttl">SPY · Bull Put Credit Spread · $575 / $570</div>
+              <div class="meta">Opened May 27 · credit $1.42 · 38 <span class="term" data-tip="Days to expiration.">DTE</span> · short-leg <span class="term" data-tip="Roughly the market's estimate of the odds your short strike finishes in the money. Δ0.18 ≈ an 18% chance — and it tells you how fast the position's value moves with the stock.">Δ</span> 0.18 → 0.15</div>
+            </div>
+            <span class="pill open">OPEN</span>
+          </div>
+          <div class="grid2">
+            <div>
+              <h4>Payoff — expiration vs <span class="term" data-tip="What the spread is worth right now (per Black-Scholes), before expiration. Time decay pulls this blue line toward the green expiration line a little every day.">T+0</span></h4>
+              <div id="payoff-spy" class="skel" style="height:210px"></div>
+              <div class="chartctl">
+                <label>IV <output id="iv-spy-out">18%</output><input type="range" id="iv-spy" min="10" max="60" value="18"></label>
+                <label>Days fwd <output id="df-spy-out">0</output><input type="range" id="df-spy" min="0" max="37" value="0"></label>
+              </div>
+            </div>
+            <div>
+              <h4>Progress to 50% profit target</h4>
+              <div class="row" style="justify-content:space-between;margin-bottom:6px">
+                <span class="muted" style="font-size:12px">Spread now worth $0.88 (collected $1.42)</span>
+                <b style="color:var(--green)">38% captured</b>
+              </div>
+              <div class="progress"><i style="width:38%"></i></div>
+              <h4>Exit triggers — written at entry, checked daily</h4>
+              <div class="trig"><span>Profit target: buy back at <b>$0.71</b> (50% of credit)</span><span class="tag watch">$0.17 AWAY</span></div>
+              <div class="trig"><span>Stop: spread value reaches <b>$2.84</b> (2× credit)</span><span class="tag ok">SAFE</span></div>
+              <div class="trig"><span>Time stop: close or roll at <b>21 DTE</b></span><span class="tag ok">17 DAYS</span></div>
+              <div class="trig"><span>Price vs short strike: SPY $581.40, short put $575</span><span class="tag ok">+1.1% BUFFER</span></div>
+            </div>
+          </div>
+          <h4>P&L matrix — spread value across price and time</h4>
+          <div id="heat-spy" class="skel" style="height:240px"></div>
+        </div>
+
+        <!-- XLK position card -->
+        <div class="panel">
+          <div class="poshead">
+            <div>
+              <div class="ttl">XLK · Cash-Secured Put · $220</div>
+              <div class="meta">Opened May 29 · credit $2.10 · 45 DTE · Δ 0.22 → 0.24</div>
+            </div>
+            <span class="pill open">OPEN</span>
+          </div>
+          <div class="grid2">
+            <div>
+              <h4>Payoff at expiration</h4>
+              <div id="payoff-xlk" class="skel" style="height:210px"></div>
+            </div>
+            <div>
+              <h4>Progress to 50% profit target</h4>
+              <div class="row" style="justify-content:space-between;margin-bottom:6px">
+                <span class="muted" style="font-size:12px">Put now worth $1.74 (collected $2.10)</span>
+                <b style="color:var(--amber)">17% captured</b>
+              </div>
+              <div class="progress"><i class="amber" style="width:17%"></i></div>
+              <h4>Exit triggers</h4>
+              <div class="trig"><span>Profit target: buy back at <b>$1.05</b></span><span class="tag watch">$0.69 AWAY</span></div>
+              <div class="trig"><span>Stop: put value reaches <b>$4.20</b></span><span class="tag ok">SAFE</span></div>
+              <div class="trig"><span>Time stop: close or roll at <b>21 DTE</b></span><span class="tag ok">24 DAYS</span></div>
+              <div class="trig"><span><span class="term" data-tip="If XLK closes below $220 at expiration, you buy 100 shares at $220. With a cash-secured put that should be a price you'd genuinely be happy to own at.">Assignment</span> check: still happy to own at $220?</span><span class="tag watch">RECONFIRM</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== JOURNAL ===== -->
+      <section class="view" id="journal">
+        <div class="head">
+          <div>
+            <h1>Journal</h1>
+            <div class="sub">Log every paper & real trade — honestly.</div>
+          </div>
+          <div class="row"><button class="btn ghost">⇪ Import CSV</button><button class="btn">+ Open Trade</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Open positions</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Strategy</th>
+                <th>Opened</th>
+                <th>Credit</th>
+                <th>Δ</th>
+                <th>DTE</th>
+                <th>Reason for entry</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>SPY</b></td>
+                <td>Bull Put Credit Spread</td>
+                <td>May 27</td>
+                <td>$1.42</td>
+                <td>0.18</td>
+                <td>38</td>
+                <td>Above 20/50 EMA, RSI 58, bounce off support</td>
+                <td><span class="pill open">OPEN</span></td>
+              </tr>
+              <tr>
+                <td><b>XLK</b></td>
+                <td>Cash-Secured Put</td>
+                <td>May 29</td>
+                <td>$2.10</td>
+                <td>0.22</td>
+                <td>45</td>
+                <td>Would happily own at strike; healthy trend</td>
+                <td><span class="pill open">OPEN</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid2" style="align-items:start">
+          <div class="panel">
+            <h3>Closed trades</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Strategy</th>
+                  <th>P&L</th>
+                  <th>Rules</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>QQQ</td>
+                  <td>Bull Put Spread</td>
+                  <td>+$118</td>
+                  <td><span class="tick">5/5 ✓</span></td>
+                  <td><span class="pill win">WIN</span></td>
+                </tr>
+                <tr>
+                  <td>IWM</td>
+                  <td>Cash-Secured Put</td>
+                  <td>+$95</td>
+                  <td><span class="tick">4/4 ✓</span></td>
+                  <td><span class="pill win">WIN</span></td>
+                </tr>
+                <tr>
+                  <td>GLD</td>
+                  <td>Directional Long Call</td>
+                  <td>−$60</td>
+                  <td><span class="cross">2/4 ✗</span></td>
+                  <td><span class="pill loss">LOSS</span></td>
+                </tr>
+                <tr>
+                  <td>SPY</td>
+                  <td>Bull Put Spread</td>
+                  <td>+$132</td>
+                  <td><span class="tick">5/5 ✓</span></td>
+                  <td><span class="pill win">WIN</span></td>
+                </tr>
+                <tr>
+                  <td>XLV</td>
+                  <td>Bull Put Spread</td>
+                  <td>−$210</td>
+                  <td><span class="cross">3/5 ✗</span></td>
+                  <td><span class="pill loss">LOSS</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <h3>Rules-followed checklist <span class="muted" style="font-weight:400">— SPY trade</span></h3>
+            <div class="muted" style="font-size:12px;margin-bottom:10px">Separates "the strategy didn't work" from "I
+              didn't follow the strategy."</div>
+            <div class="check"><input type="checkbox" checked> Price above 20-EMA and 50-EMA</div>
+            <div class="check"><input type="checkbox" checked> RSI between 40 and 70</div>
+            <div class="check"><input type="checkbox" checked> Clear support below short strike</div>
+            <div class="check"><input type="checkbox" checked> Short-leg delta in 0.15–0.25 band</div>
+            <div class="check"><input type="checkbox" checked> No earnings / FOMC before expiry</div>
+            <div class="check"><input type="checkbox"> Exit plan written before entry</div>
+            <div class="row" style="margin-top:14px"><button class="btn">Save</button><span class="muted">Adherence: <b
+                  style="color:var(--green)">83%</b></span></div>
+          </div>
+        </div>
+
+        <div class="grid2" style="align-items:start">
+          <div class="panel">
+            <h3>Campaigns <span class="muted" style="font-weight:400">— <span class="term" data-tip="Closing a spread and reopening it at a later expiration (and often different strikes) to give the trade more time. The tickets are separate, but it's one idea — so P&L is judged per campaign.">rolls</span> linked, P&L judged per idea</span></h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Leg</th>
+                  <th>Position</th>
+                  <th>P&L</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="campaign">
+                  <td colspan="2">QQQ bull put campaign · Apr 14 – May 23</td>
+                  <td style="color:var(--green)">+$64 net</td>
+                  <td><span class="pill win">WIN</span></td>
+                </tr>
+                <tr>
+                  <td class="chain">└ 1</td>
+                  <td>500/495 put spread, 45 DTE</td>
+                  <td style="color:var(--red)">−$54</td>
+                  <td class="chain">tested at 21 DTE → <span class="chainlink">rolled ↓</span></td>
+                </tr>
+                <tr>
+                  <td class="chain">└ 2</td>
+                  <td>495/490 put spread, next monthly</td>
+                  <td style="color:var(--green)">+$118</td>
+                  <td class="chain">closed at 50% target</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="muted" style="font-size:12px;margin:10px 0 0">Without linking, leg 1 pollutes the stats as a "loss"
+              on a campaign that finished green.</p>
+          </div>
+
+          <div class="panel">
+            <h3>Open trade <span class="muted" style="font-weight:400">— exit plan is required, not optional</span></h3>
+            <div class="grid2" style="gap:12px">
+              <div class="field"><label>Ticker / strategy</label><input value="SPY · Bull Put Spread"></div>
+              <div class="field"><label>Strikes / credit</label><input value="575 / 570 · $1.42"></div>
+              <div class="field locked"><label>Profit target <span class="req">*</span></label><input value="Buy back at 50% ($0.71)"></div>
+              <div class="field locked"><label>Stop <span class="req">*</span></label><input value="2× credit ($2.84)"></div>
+              <div class="field locked"><label>Time stop <span class="req">*</span></label><input value="Close or roll at 21 DTE"></div>
+              <div class="field"><label>Reason for entry</label><input value="Above 20/50 EMA, RSI 58, support hold"></div>
+            </div>
+            <div class="row"><button class="btn">Save trade</button><span class="muted" style="font-size:12px">Won't save
+                without all three exit fields — the plan is written when you're calm, not when the trade is moving.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ANALYTICS ===== -->
+      <section class="view" id="analytics">
+        <div class="head">
+          <div>
+            <h1>Analytics</h1>
+            <div class="sub">Your real numbers — not your feelings.</div>
+          </div>
+          <div class="sub">Rolling window: <b>All trades</b></div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="lbl">Win rate</div>
+            <div class="val green">68%</div>
+            <div class="delta">last 20 trades</div>
+          </div>
+          <div class="card">
+            <div class="lbl">Avg win / avg loss</div>
+            <div class="val">$121 / $135</div>
+            <div class="delta">ratio 0.90</div>
+          </div>
+          <div class="card">
+            <div class="lbl">Profit factor</div>
+            <div class="val green">1.92</div>
+            <div class="delta">&gt;1 = net positive</div>
+          </div>
+          <div class="card">
+            <div class="lbl">Rule adherence</div>
+            <div class="val">79%</div>
+            <div class="delta">trending up ↑</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <h3>Equity curve (paper)</h3>
+            <div id="equity" style="height:260px"></div>
+          </div>
+          <div class="panel">
+            <h3>Rule adherence over time</h3>
+            <div id="adherence" style="height:260px"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Week-6 scaling gate</h3>
+          <div class="gate red">
+            <div class="lampoff"></div>
+            <div>
+              <div class="ttl">🔴 Not yet — hold size</div>
+              <div class="why">Green-lights only when rule adherence ≥ 90% <b>AND</b> net P&amp;L is positive over the
+                window. Currently: adherence 79% (need 90%), P&amp;L positive ✓. Tighten discipline before scaling.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== BACKTESTER ===== -->
+      <section class="view" id="backtester">
+        <div class="head">
+          <div>
+            <h1>Backtester</h1>
+            <div class="sub">Test a strategy against history before risking a dollar.</div>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="panel" style="grid-column:span 1">
+            <h3>Configure run</h3>
+            <div class="field"><label>Strategy</label><select>
+                <option>Bull Put Credit Spread</option>
+                <option>Cash-Secured Put</option>
+                <option>Directional Long Option</option>
+              </select></div>
+            <div class="field"><label>Ticker</label><select>
+                <option>SPY</option>
+                <option>QQQ</option>
+                <option>IWM</option>
+              </select></div>
+            <div class="field"><label>Short-leg delta</label><select>
+                <option>0.15</option>
+                <option selected>0.20</option>
+                <option>0.25</option>
+              </select></div>
+            <div class="field"><label>DTE</label><select>
+                <option>30</option>
+                <option selected>45</option>
+              </select></div>
+            <div class="field"><label>Date range</label><input value="2015-01-01 → 2026-05-01"></div>
+            <button class="btn" style="width:100%">▶ Run backtest</button>
+            <div class="muted" style="font-size:11px;margin-top:10px">Options priced via Black-Scholes + VIX-family IV
+              proxy. Models spread cost, slippage & assignment.</div>
+          </div>
+
+          <div class="panel" style="grid-column:span 2">
+            <h3>Results — Bull Put Spread · SPY · Δ0.20 · 45 DTE</h3>
+            <div class="cards" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+              <div class="card">
+                <div class="lbl">Win rate</div>
+                <div class="val green">81%</div>
+              </div>
+              <div class="card">
+                <div class="lbl">Profit factor</div>
+                <div class="val green">1.74</div>
+              </div>
+              <div class="card">
+                <div class="lbl">Max drawdown</div>
+                <div class="val red">−14.2%</div>
+              </div>
+            </div>
+            <div id="btequity" style="height:200px"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <h3>Performance by market regime <span class="muted" style="font-weight:400">— the bull-market trap
+                check</span></h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Regime</th>
+                  <th>Trades</th>
+                  <th>Win rate</th>
+                  <th>Avg P&L</th>
+                  <th>Profit factor</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>📈 Trending up</td>
+                  <td>142</td>
+                  <td>89%</td>
+                  <td>+$96</td>
+                  <td><span style="color:var(--green)">2.41</span></td>
+                </tr>
+                <tr>
+                  <td>🌀 Choppy</td>
+                  <td>98</td>
+                  <td>76%</td>
+                  <td>+$41</td>
+                  <td><span style="color:var(--green)">1.38</span></td>
+                </tr>
+                <tr>
+                  <td>📉 Declining</td>
+                  <td>53</td>
+                  <td>61%</td>
+                  <td>−$22</td>
+                  <td><span style="color:var(--red)">0.84</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>In-sample vs out-of-sample <span class="muted" style="font-weight:400">— overfitting check</span></h3>
+            <div class="banner warn">⚠️ Out-of-sample is reserved history the strategy was never tuned on. Big gaps =
+              overfit.</div>
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>In-sample</th>
+                  <th>Out-of-sample</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Win rate</td>
+                  <td>83%</td>
+                  <td>78%</td>
+                </tr>
+                <tr>
+                  <td>Profit factor</td>
+                  <td>1.81</td>
+                  <td>1.59</td>
+                </tr>
+                <tr>
+                  <td>Verdict</td>
+                  <td colspan="2"><span style="color:var(--green)">✓ Holds up — modest, expected degradation</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Parameter sensitivity — profit factor</h3>
+          <div id="heatmap" style="height:240px"></div>
+        </div>
+      </section>
+
+      <!-- ===== SCANNER ===== -->
+      <section class="view" id="scanner">
+        <div class="head">
+          <div>
+            <h1>Scanner</h1>
+            <div class="sub">Sunday screen → a shortlist to review. You place every trade by hand.</div>
+          </div>
+          <div class="row"><span class="muted">Last run: Sun May 31, 6:00 PM</span><button class="btn">↻ Run
+              now</button></div>
+        </div>
+
+        <div class="banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
+          this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
+
+        <div class="panel">
+          <h3>SPY — regime chart <span class="muted" style="font-weight:400">— candles, 20/50 EMA, volume</span></h3>
+          <div id="market-spy" class="skel" style="height:400px"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Regime playbook <span class="muted" style="font-weight:400">— the gate switches strategies, it doesn't just say no</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Regime</th>
+                <th>Signal</th>
+                <th>Playbook</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>📈 Trending up</td>
+                <td>SPY above 50-EMA</td>
+                <td><span class="term" data-tip="Sell a put, buy a cheaper put below it. Profits if the market stays flat or rises. Defined risk.">Bull put spreads</span></td>
+                <td><span class="pill win">ACTIVE NOW</span></td>
+              </tr>
+              <tr>
+                <td>📉 Trending down</td>
+                <td>SPY below 50-EMA</td>
+                <td><span class="term" data-tip="Sell a call, buy a cheaper call above it. The bearish mirror image of a bull put spread. Defined risk.">Bear call spreads</span></td>
+                <td><span class="pill open">PAPER ONLY</span></td>
+              </tr>
+              <tr>
+                <td>🌀 Choppy / range</td>
+                <td>Price between EMAs, low <span class="term" data-tip="Average Directional Index — a trend-strength gauge. Low readings mean the market is drifting sideways.">ADX</span></td>
+                <td><span class="term" data-tip="A bull put spread and a bear call spread on the same ticker at once. Profits if price stays inside a range. Defined risk on both sides.">Iron condors</span></td>
+                <td><span class="pill loss">LOCKED — 25 live trades first</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="muted" style="font-size:12px;margin:10px 0 0">New playbooks unlock one at a time. Backtest showed
+            profit factor 0.84 forcing bull spreads into declining markets — the fix is a different strategy, not more
+            conviction.</p>
+        </div>
+
+        <div class="panel">
+          <h3>ETF screen</h3>
+          <table class="scangrid">
+            <thead>
+              <tr>
+                <th>ETF</th>
+                <th class="crit">&gt; 20 EMA</th>
+                <th class="crit">&gt; 50 EMA</th>
+                <th class="crit">RSI 40–70</th>
+                <th class="crit"><span class="term" data-tip="IV Rank: where today's implied volatility sits versus its own past year, 0–100. Credit spreads sell volatility — below ~25 the credit is too thin for the risk.">IVR ≥ 25</span></th>
+                <th class="crit">Support</th>
+                <th class="crit">Event risk</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>SPY</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓ <span class="muted">58</span></td>
+                <td class="crit tick">✓ <span class="muted">34</span></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">clear</td>
+                <td><span class="pill win">QUALIFIES</span></td>
+              </tr>
+              <tr>
+                <td><b>QQQ</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓ <span class="muted">63</span></td>
+                <td class="crit tick">✓ <span class="muted">41</span></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">clear</td>
+                <td><span class="pill win">QUALIFIES</span></td>
+              </tr>
+              <tr>
+                <td><b>IWM</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit cross">✗</td>
+                <td class="crit tick">✓ <span class="muted">49</span></td>
+                <td class="crit tick">✓ <span class="muted">28</span></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">clear</td>
+                <td><span class="pill loss">FAIL</span></td>
+              </tr>
+              <tr>
+                <td><b>XLK</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓</td>
+                <td class="crit cross">✗ <span class="muted">72</span></td>
+                <td class="crit cross">✗ <span class="muted">22</span></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">clear</td>
+                <td><span class="pill loss">FAIL</span></td>
+              </tr>
+              <tr>
+                <td><b>GLD</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓ <span class="muted">55</span></td>
+                <td class="crit cross">✗ <span class="muted">19</span></td>
+                <td class="crit cross">✗</td>
+                <td class="crit tick">clear</td>
+                <td><span class="pill loss">FAIL</span></td>
+              </tr>
+              <tr>
+                <td><b>XLV</b></td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓</td>
+                <td class="crit tick">✓ <span class="muted">52</span></td>
+                <td class="crit tick">✓ <span class="muted">31</span></td>
+                <td class="crit tick">✓</td>
+                <td class="crit cross">earnings</td>
+                <td><span class="pill loss">FAIL</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid2">
+          <div class="topcard">
+            <h3 style="margin-top:0">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
+            <div class="muted" style="font-size:13px">Best credit-to-risk among qualifiers. Suggested for <b>review</b>,
+              not execution.</div>
+            <div class="kv">
+              <div>
+                <div class="k">Sell put</div>
+                <div class="v">$575 (Δ0.19)</div>
+              </div>
+              <div>
+                <div class="k">Buy put</div>
+                <div class="v">$570</div>
+              </div>
+              <div>
+                <div class="k">Net credit</div>
+                <div class="v" style="color:var(--green)">$1.45</div>
+              </div>
+              <div>
+                <div class="k">Max loss</div>
+                <div class="v" style="color:var(--red)">$355</div>
+              </div>
+              <div>
+                <div class="k">Break-even</div>
+                <div class="v">$573.55</div>
+              </div>
+              <div>
+                <div class="k">Profit target</div>
+                <div class="v">50% ($0.73)</div>
+              </div>
+              <div>
+                <div class="k">Stop</div>
+                <div class="v">2× credit</div>
+              </div>
+              <div>
+                <div class="k">DTE</div>
+                <div class="v">38</div>
+              </div>
+              <div>
+                <div class="k"><span class="term" data-tip="IV Rank: where implied volatility sits versus its own past year. Higher = richer credit for the same defined risk.">IV rank</span></div>
+                <div class="v">34</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>Weekly summary <span class="muted" style="font-weight:400">— optional Claude layer</span></h3>
+            <p class="softtext" style="line-height:1.6">This week <b>SPY and QQQ qualify</b>. SPY offers the best
+              credit-to-risk: the $575/$570 put spread collects <b>$1.45</b> against <b>$3.55</b> of risk (≈41% return
+              on risk) with the short leg at delta 0.19 and clear support at $572. QQQ qualifies too but its nearest
+              support sits closer to the short strike, leaving a thinner buffer. IWM, XLK, GLD and XLV were screened out
+              — IWM is below its 50-EMA, XLK is overbought (RSI 72), GLD lacks clear support, and XLV has earnings
+              before expiry.</p>
+            <p class="muted" style="font-size:12px">Generated for review · not financial advice · you decide and place
+              every trade.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== LEARN ===== -->
+      <section class="view" id="learn">
+        <div class="head">
+          <div>
+            <h1>Learn</h1>
+            <div class="sub">Every dotted term across the app links back here. Educational only — not financial advice.</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <h3>The five numbers to check before any spread</h3>
+            <div class="step">
+              <div class="n">1</div>
+              <div><b>Max loss in dollars</b>
+                <p>Spread width minus credit, × 100. If this number is more than 2% of the account, the trade is too big
+                  — full stop, before any other analysis.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">2</div>
+              <div><b>Short-leg delta</b>
+                <p>Roughly the odds the short strike finishes in the money. The 0.15–0.25 band trades small, frequent
+                  wins against occasional defined losses.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">3</div>
+              <div><b>IV rank</b>
+                <p>Credit spreads sell volatility. Below ~25, the credit collected is thin for the risk taken — pass and
+                  wait.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">4</div>
+              <div><b>Break-even</b>
+                <p>Short strike minus credit. Ask: does price have room and support above this line?</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">5</div>
+              <div><b>The calendar</b>
+                <p>Earnings, FOMC, CPI before expiry? One scheduled event can move price through both strikes overnight.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>First 90 days — the ramp</h3>
+            <div class="step">
+              <div class="n done">✓</div>
+              <div><b>Weeks 1–2: paper only, one ticker</b>
+                <p>SPY only. Learn the order ticket, the fills, the Greeks moving. Journal every trade as if it were
+                  real money.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">2</div>
+              <div><b>Weeks 3–6: paper, full screen</b>
+                <p>Run the Sunday scanner, trade the qualifiers, follow the exit plan exactly. Goal is 90%+ rule
+                  adherence, not P&L.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">3</div>
+              <div><b>Weeks 7+: smallest real size</b>
+                <p>One contract, narrowest width. Real money feels different — that's the point. The Week-6 scaling gate
+                  in Analytics decides when size grows.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="n">4</div>
+              <div><b>Later: new playbooks unlock one at a time</b>
+                <p>Bear call spreads, then iron condors — each one paper-traded first, each gated on adherence.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Glossary <span class="muted" style="font-weight:400">— every term used anywhere in this app</span></h3>
+          <div class="field" style="max-width:340px;margin-bottom:16px"><input id="glossfilter" type="text"
+              placeholder="Filter terms… try RSI, vega, drawdown" autocomplete="off"></div>
+          <div class="gsec">
+            <h4>Contract basics</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Option contract</div>
+              <div class="d">The right, not the obligation, to buy (call) or sell (put) 100 shares at a set price by a set date. The buyer pays for that right; the seller is paid to take on the matching obligation. Credit spreads put you on the seller side, with protection.</div>
+            </div>
+            <div class="g">
+              <div class="t">Call</div>
+              <div class="d">An option that gains value as the stock rises. Buying one is a bullish bet; selling one obligates you to deliver shares at the strike if exercised.</div>
+            </div>
+            <div class="g">
+              <div class="t">Put</div>
+              <div class="d">An option that gains value as the stock falls. Selling a put — the engine of this whole playbook — means being paid to promise to buy shares at the strike.</div>
+            </div>
+            <div class="g">
+              <div class="t">Strike price</div>
+              <div class="d">The fixed price the contract trades shares at if exercised. A spread always involves two strikes: one sold, one bought.</div>
+            </div>
+            <div class="g">
+              <div class="t">Premium</div>
+              <div class="d">What an option costs. Quoted per share, so a $1.42 premium is $142 per contract.</div>
+            </div>
+            <div class="g">
+              <div class="t">Expiration</div>
+              <div class="d">The date the contract stops existing. After it, options are either exercised (in the money) or expire worthless (out of the money).</div>
+            </div>
+            <div class="g">
+              <div class="t">Contract multiplier</div>
+              <div class="d">Every standard option controls 100 shares, so all per-share numbers get multiplied by 100. A $5-wide spread risks up to $500 per contract, not $5.</div>
+            </div>
+            <div class="g">
+              <div class="t">Intrinsic value</div>
+              <div class="d">What an option would be worth if exercised right now. A $575 put with the stock at $570 has $5 of intrinsic value; with the stock at $581, it has none.</div>
+            </div>
+            <div class="g">
+              <div class="t">Extrinsic value</div>
+              <div class="d">Everything in the premium beyond intrinsic value — payment for time and uncertainty. This is what a credit-spread seller collects and what theta erodes away.</div>
+            </div>
+            <div class="g">
+              <div class="t">ITM / ATM / OTM</div>
+              <div class="d">In, at, or out of the money. A put is ITM when the stock is below its strike, ATM right at it, OTM above it. Spreads here are opened OTM and the goal is for them to stay that way.</div>
+            </div>
+            <div class="g">
+              <div class="t">Exercise</div>
+              <div class="d">The option buyer using their right to trade shares at the strike. As a seller you don't exercise — you can only be assigned.</div>
+            </div>
+            <div class="g">
+              <div class="t">Assignment</div>
+              <div class="d">Being on the receiving end of exercise. If your short put finishes ITM, you buy 100 shares at the strike. The long leg of a spread offsets this; a cash-secured put leaves you owning the stock.</div>
+            </div>
+            <div class="g">
+              <div class="t">Early assignment</div>
+              <div class="d">Assignment before expiration. Rare on OTM spreads, more likely when a short option is deep ITM with little extrinsic value left — one reason positions get closed by 21 DTE instead of held to the end.</div>
+            </div>
+            <div class="g">
+              <div class="t">Pin risk</div>
+              <div class="d">The stock closing almost exactly at your short strike on expiration day, leaving you unsure whether you'll be assigned overnight. Avoided entirely by closing before expiration.</div>
+            </div>
+            <div class="g">
+              <div class="t">Ex-dividend risk</div>
+              <div class="d">Short calls can be assigned early just before a dividend, since the option holder wants the payout. Matters once bear call spreads or iron condors are in play.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Spread construction</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Vertical spread</div>
+              <div class="d">Two options of the same type and expiration at different strikes, one sold and one bought. The family name for bull put and bear call spreads.</div>
+            </div>
+            <div class="g">
+              <div class="t">Credit spread</div>
+              <div class="d">A vertical where the option you sell is worth more than the one you buy, so cash lands in the account up front. The bought leg caps the maximum loss — defined risk by construction.</div>
+            </div>
+            <div class="g">
+              <div class="t">Debit spread</div>
+              <div class="d">The mirror image: you pay to open because the bought leg costs more than the sold one. A directional bet rather than an income trade — not part of this playbook yet.</div>
+            </div>
+            <div class="g">
+              <div class="t">Bull put spread</div>
+              <div class="d">Sell a put, buy a cheaper put below it. Profits if the stock rises, drifts sideways, or even falls a little — it only loses if price drops through the short strike by more than the credit.</div>
+            </div>
+            <div class="g">
+              <div class="t">Bear call spread</div>
+              <div class="d">Sell a call, buy a cheaper call above it. The bearish mirror image of a bull put spread, used when the regime gate flips down.</div>
+            </div>
+            <div class="g">
+              <div class="t">Iron condor</div>
+              <div class="d">A bull put spread and a bear call spread on the same ticker at once. Collects two credits and profits if price stays inside the range. Defined risk on both sides, but two short strikes to defend.</div>
+            </div>
+            <div class="g">
+              <div class="t">Cash-secured put</div>
+              <div class="d">A short put with the full strike value held in cash, no protective leg. The credit is larger but risk is undefined down to zero — which is why it can blow through a 2% per-trade cap.</div>
+            </div>
+            <div class="g">
+              <div class="t">Spread width</div>
+              <div class="d">The distance between the two strikes. Width minus credit is the maximum loss: a $5-wide spread that collects $1.42 risks $3.58 per share, $358 per contract.</div>
+            </div>
+            <div class="g">
+              <div class="t">Legs / legging in</div>
+              <div class="d">Each option in a spread is a leg. Entering both legs as one order gets one fill at one price; legging in (placing them separately) risks the market moving between fills.</div>
+            </div>
+            <div class="g">
+              <div class="t">Defined vs undefined risk</div>
+              <div class="d">Defined risk means the worst case is known and capped before entry (spreads, condors). Undefined risk means losses can keep growing (naked puts, CSPs to zero). The dashboard's guardrails exist to flag the difference.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>The Greeks</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Delta (Δ)</div>
+              <div class="d">Two jobs: how much the option price moves per $1 move in the stock, and a rough probability the option expires in the money. A 0.18-delta short put ≈ an 18% chance of being tested.</div>
+            </div>
+            <div class="g">
+              <div class="t">Gamma</div>
+              <div class="d">How fast delta itself changes as the stock moves. Gamma explodes near expiration, which makes the final weeks twitchy for short options — the reason behind the 21-DTE exit.</div>
+            </div>
+            <div class="g">
+              <div class="t">Theta</div>
+              <div class="d">Time decay, the income source of a credit spread. Every day price stays above the short strike, the spread gets cheaper to buy back. Theta works for the seller and against the buyer.</div>
+            </div>
+            <div class="g">
+              <div class="t">Vega</div>
+              <div class="d">Sensitivity to changes in implied volatility. A short spread profits when IV falls after entry and hurts when it spikes — which is why selling when IV rank is already high stacks the odds.</div>
+            </div>
+            <div class="g">
+              <div class="t">Rho</div>
+              <div class="d">Sensitivity to interest rates. Real, but negligible at 30–45 DTE — the one Greek safely ignored at this stage.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Volatility</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Implied volatility (IV)</div>
+              <div class="d">The market's forecast of how much the stock will move, baked into option prices. High IV = expensive options = fatter credits for sellers.</div>
+            </div>
+            <div class="g">
+              <div class="t">Historical volatility</div>
+              <div class="d">How much the stock actually moved in the past. Comparing it to IV shows whether options are pricing in more drama than the stock typically delivers.</div>
+            </div>
+            <div class="g">
+              <div class="t">IV rank</div>
+              <div class="d">Where today's IV sits versus its own past year, 0–100. An IVR of 34 means IV is higher than it's been 34% of the time. Below ~25, credits are too thin for the risk — the scanner's volatility gate.</div>
+            </div>
+            <div class="g">
+              <div class="t">IV percentile</div>
+              <div class="d">A cousin of IV rank: the percentage of days in the past year IV closed lower than today. Same idea, slightly different math — know which one a platform is quoting.</div>
+            </div>
+            <div class="g">
+              <div class="t">Expected move</div>
+              <div class="d">The price range the options market implies for a period, roughly one standard deviation. Useful sanity check: is the short strike outside the expected move?</div>
+            </div>
+            <div class="g">
+              <div class="t">Volatility crush</div>
+              <div class="d">A sharp IV collapse after a known event (earnings, FOMC) passes. Great for positions opened before it at high IV — brutal for options bought into it.</div>
+            </div>
+            <div class="g">
+              <div class="t">Skew</div>
+              <div class="d">OTM puts usually carry higher IV than OTM calls because markets fear crashes more than rallies. It's why put credit spreads tend to pay better than the call side.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Trade math</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Credit</div>
+              <div class="d">The cash collected up front when the spread is sold. It's also the maximum profit — the best case is keeping all of it.</div>
+            </div>
+            <div class="g">
+              <div class="t">Max profit</div>
+              <div class="d">The full credit, earned if both legs expire worthless. In practice the playbook takes 50% early rather than waiting for the last dollar.</div>
+            </div>
+            <div class="g">
+              <div class="t">Max loss</div>
+              <div class="d">Spread width minus credit, times 100. Known before entry and the first of the five numbers checked — if it exceeds 2% of the account, nothing else matters.</div>
+            </div>
+            <div class="g">
+              <div class="t">Break-even</div>
+              <div class="d">Short strike minus credit (for put spreads). At expiration, every cent above it is profit territory; below it, losses grow until the long leg caps them.</div>
+            </div>
+            <div class="g">
+              <div class="t">Return on risk</div>
+              <div class="d">Credit divided by max loss. The $1.42 credit against $3.58 of risk is ≈40% — the yardstick for comparing candidate spreads.</div>
+            </div>
+            <div class="g">
+              <div class="t">Credit-to-width ratio</div>
+              <div class="d">Credit divided by spread width. Collecting roughly a third of the width is a common benchmark for a fairly-priced spread at these deltas.</div>
+            </div>
+            <div class="g">
+              <div class="t">Probability of profit (POP)</div>
+              <div class="d">The modeled odds the trade makes at least $0.01. Closely tied to the short-leg delta — a 0.18-delta spread has roughly an 80%+ POP, paired with smaller wins than losses.</div>
+            </div>
+            <div class="g">
+              <div class="t">Delta band</div>
+              <div class="d">The 0.15–0.25 short-leg range this playbook sells in. Tighter than 0.15 pays too little; richer than 0.25 gets tested too often.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>The technical screen</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">EMA (20 / 50)</div>
+              <div class="d">Exponential moving average — average price with extra weight on recent days. Price above the 20- and 50-day EMAs is this system's definition of a healthy uptrend; the 50-EMA is the master gate.</div>
+            </div>
+            <div class="g">
+              <div class="t">SMA</div>
+              <div class="d">Simple moving average, every day weighted equally. Slower to react than an EMA; some traders use the 200-day SMA as the big-picture trend line.</div>
+            </div>
+            <div class="g">
+              <div class="t">RSI</div>
+              <div class="d">Relative Strength Index, 0–100 — a momentum gauge of recent gains versus losses. The screen wants 40–70: enough strength to confirm the trend, not so much that the move is stretched.</div>
+            </div>
+            <div class="g">
+              <div class="t">Overbought / oversold</div>
+              <div class="d">RSI above ~70 or below ~30. Overbought doesn't mean 'about to fall' — it means the easy part of the move may be done, a poor moment to sell a put spread underneath it.</div>
+            </div>
+            <div class="g">
+              <div class="t">ADX</div>
+              <div class="d">Average Directional Index — trend strength, regardless of direction. Low ADX means a drifting, range-bound market: the regime where iron condors eventually take over from directional spreads.</div>
+            </div>
+            <div class="g">
+              <div class="t">Support / resistance</div>
+              <div class="d">Price zones where buyers (support) or sellers (resistance) have repeatedly stepped in. The screen wants clear support between current price and the short strike — a floor before the trade is wrong.</div>
+            </div>
+            <div class="g">
+              <div class="t">Trend regime</div>
+              <div class="d">The market's current personality: trending up, trending down, or choppy. Strategies aren't good or bad in a vacuum — they're matched or mismatched to regime, which is what the playbook table enforces.</div>
+            </div>
+            <div class="g">
+              <div class="t">Event risk</div>
+              <div class="d">Scheduled news with the power to jump price through both strikes overnight — earnings, FOMC meetings, CPI prints. The screen disqualifies any ticker with one before expiration.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Execution &amp; account</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Bid-ask spread</div>
+              <div class="d">The gap between what buyers offer and sellers ask. Wide gaps are a hidden tax on every entry and exit — liquid ETFs like SPY keep it to pennies.</div>
+            </div>
+            <div class="g">
+              <div class="t">Mid price</div>
+              <div class="d">Halfway between bid and ask, the usual starting point for a limit order. Getting filled at or near mid on both legs is part of the edge.</div>
+            </div>
+            <div class="g">
+              <div class="t">Slippage</div>
+              <div class="d">The difference between the price expected and the price actually filled. Small per trade, meaningful across a hundred trades — the backtest models it for that reason.</div>
+            </div>
+            <div class="g">
+              <div class="t">Open interest</div>
+              <div class="d">How many contracts exist at a strike. Healthy open interest means real two-sided markets and easier exits.</div>
+            </div>
+            <div class="g">
+              <div class="t">Volume</div>
+              <div class="d">Contracts traded today. Volume plus open interest is the quick liquidity check before trusting any quoted price.</div>
+            </div>
+            <div class="g">
+              <div class="t">Buying power reduction</div>
+              <div class="d">Capital the broker sets aside while a position is open. A defined-risk spread reserves roughly its max loss; a cash-secured put reserves the entire strike value — the dashboard's BP card makes that visible.</div>
+            </div>
+            <div class="g">
+              <div class="t">Margin</div>
+              <div class="d">Borrowed capacity from the broker. This playbook never uses it: every position is either defined-risk or fully cash-secured.</div>
+            </div>
+            <div class="g">
+              <div class="t">Fill</div>
+              <div class="d">The actual execution of an order. 'Working' an order means starting at mid and adjusting a cent at a time rather than crossing the whole spread instantly.</div>
+            </div>
+            </div>
+          </div>
+          <div class="gsec">
+            <h4>Process &amp; performance</h4>
+            <div class="gloss">
+            <div class="g">
+              <div class="t">Win rate</div>
+              <div class="d">Percentage of trades closed profitably. High-probability spreads naturally win often — which is exactly why win rate alone is misleading without the next metric.</div>
+            </div>
+            <div class="g">
+              <div class="t">Profit factor</div>
+              <div class="d">Gross wins ÷ gross losses. Above 1 the system makes money; below 1 it doesn't, no matter how pretty the win rate. The single most honest summary number on the Analytics page.</div>
+            </div>
+            <div class="g">
+              <div class="t">Equity curve</div>
+              <div class="d">Cumulative P&L over time, plotted. The shape matters as much as the endpoint — steady stairs beat a spike followed by a cliff.</div>
+            </div>
+            <div class="g">
+              <div class="t">Max drawdown</div>
+              <div class="d">The deepest peak-to-trough drop the account suffered. The number that decides whether a strategy is emotionally survivable, not just mathematically positive.</div>
+            </div>
+            <div class="g">
+              <div class="t">Rule adherence</div>
+              <div class="d">Percentage of trades where every checklist rule was followed. It separates 'the strategy didn't work' from 'I didn't follow the strategy' — and it gates position sizing.</div>
+            </div>
+            <div class="g">
+              <div class="t">Paper trading</div>
+              <div class="d">Simulated trades with fake money and real discipline. The first six weeks live here; the journal treats paper and real trades identically.</div>
+            </div>
+            <div class="g">
+              <div class="t">Position sizing</div>
+              <div class="d">How much risk one trade carries. The 2% cap means even a string of full losses dents the account instead of ending it.</div>
+            </div>
+            <div class="g">
+              <div class="t">Time stop</div>
+              <div class="d">A calendar-based exit — close or roll at 21 DTE regardless of P&L, before gamma and assignment risk pick up.</div>
+            </div>
+            <div class="g">
+              <div class="t">Rolling</div>
+              <div class="d">Closing a spread and reopening at a later expiration, often new strikes, to give the thesis more time. One idea across multiple tickets — journaled as a single campaign.</div>
+            </div>
+            <div class="g">
+              <div class="t">Campaign</div>
+              <div class="d">A chain of rolled positions judged as one trade. Prevents a roll's closing leg from polluting the stats as a standalone loss.</div>
+            </div>
+            <div class="g">
+              <div class="t">In-sample / out-of-sample</div>
+              <div class="d">In-sample is the history a strategy was tuned on; out-of-sample is reserved history it never saw. Performance should degrade only modestly out-of-sample.</div>
+            </div>
+            <div class="g">
+              <div class="t">Overfitting</div>
+              <div class="d">A strategy sculpted so tightly to past data that it memorized noise instead of learning signal. Big in-sample vs out-of-sample gaps are the tell.</div>
+            </div>
+            </div>
+          </div>
+          <p class="muted" id="glossempty" style="display:none;font-size:13px">No terms match — try a shorter word.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // nav switching
+    document.querySelectorAll('.nav a').forEach(a => {
+      a.addEventListener('click', () => {
+        document.querySelectorAll('.nav a').forEach(x => x.classList.remove('active'));
+        a.classList.add('active');
+        const v = a.dataset.view;
+        document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.id === v));
+        window.scrollTo(0, 0);
+        if (v === 'positions') drawPositions();
+        if (v === 'analytics') drawAnalytics();
+        if (v === 'backtester') drawBacktest();
+        if (v === 'scanner') drawScanner();
+      });
+    });
+
+    // theme-aware chart base — reads the live CSS variables so charts restyle with the theme
+    const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    function plotTheme() {
+      return {
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: cssv('--muted'), size: 11, family: '"JetBrains Mono", monospace' },
+        margin: { l: 40, r: 14, t: 10, b: 30 },
+        xaxis: { gridcolor: cssv('--grid') }, yaxis: { gridcolor: cssv('--grid') }
+      };
+    }
+    let dark = plotTheme();
+    const cfg = { displayModeBar: false, responsive: true };
+
+    // ===== options math — Black-Scholes, enough for T+0 curves and the P&L matrix
+    function normCdf(x) {
+      const t = 1 / (1 + 0.2316419 * Math.abs(x));
+      const d = 0.3989423 * Math.exp(-x * x / 2);
+      let p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+      return x > 0 ? 1 - p : p;
+    }
+    function bsPut(S, K, T, sigma, r = 0.04) {
+      if (T <= 0) return Math.max(K - S, 0);
+      const sq = sigma * Math.sqrt(T);
+      const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / sq;
+      const d2 = d1 - sq;
+      return K * Math.exp(-r * T) * normCdf(-d2) - S * normCdf(-d1);
+    }
+    // value of the 575/570 put spread (short 575 / long 570) per share
+    const spySpread = (S, T, iv) => bsPut(S, 575, T, iv) - bsPut(S, 570, T, iv);
+
+    // ===== Positions: payoff v2 — expiration + T+0 curves with live IV/days sliders, P&L matrix
+    let pDrawn = false;
+    const SPY = { spot: 581.40, credit: 1.42, dte: 38, be: 573.58 };
+    const XLK = { spot: 228.60, credit: 2.10, strike: 220, dte: 45, be: 217.90, iv: 0.22 };
+
+    function drawSpyPayoff() {
+      const iv = (+document.getElementById('iv-spy').value) / 100;
+      const fwd = +document.getElementById('df-spy').value;
+      document.getElementById('iv-spy-out').textContent = Math.round(iv * 100) + '%';
+      document.getElementById('df-spy-out').textContent = fwd;
+      const T = Math.max(SPY.dte - fwd, 0.4) / 365;
+
+      const xs = [], exp = [], t0 = [];
+      for (let p = 560; p <= 595; p += 0.25) {
+        xs.push(p);
+        exp.push((SPY.credit - Math.max(575 - p, 0) + Math.max(570 - p, 0)) * 100);
+        t0.push((SPY.credit - spySpread(p, T, iv)) * 100);
+      }
+      const layout = {
+        ...dark,
+        margin: { l: 46, r: 14, t: 8, b: 32 },
+        hovermode: 'x unified',
+        uirevision: 'payoff-spy',
+        // payoff diagrams are not explorable charts — the sliders are the interaction.
+        // fixed ranges + fixedrange prevent drag-zoom from colliding with slider re-renders.
+        xaxis: { ...dark.xaxis, title: { text: 'SPY price', font: { size: 11 } }, range: [560, 595], fixedrange: true, showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot' },
+        yaxis: { ...dark.yaxis, tickprefix: '$', range: [-390, 175], fixedrange: true, zeroline: true, zerolinecolor: cssv('--grid') },
+        legend: { orientation: 'h', y: 1.12, font: { size: 10 } },
+        shapes: [
+          { type: 'line', x0: SPY.spot, x1: SPY.spot, y0: -358, y1: 142, line: { color: cssv('--accent'), width: 1.5, dash: 'dot' } },
+          { type: 'line', x0: SPY.be, x1: SPY.be, y0: -358, y1: 142, line: { color: cssv('--amber'), width: 1, dash: 'dash' } }
+        ],
+        annotations: [
+          { x: SPY.spot, y: 142, text: 'now $' + SPY.spot.toFixed(2), showarrow: false, yshift: 12, font: { color: cssv('--accent'), size: 10 } },
+          { x: SPY.be, y: -358, text: 'break-even $' + SPY.be.toFixed(2), showarrow: false, yshift: -2, xshift: 8, xanchor: 'left', font: { color: cssv('--amber'), size: 10 } }
+        ]
+      };
+      Plotly.react('payoff-spy', [
+        { x: xs, y: exp, name: 'At expiration', type: 'scatter', mode: 'lines', line: { color: cssv('--green'), width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(20,160,90,.08)', hovertemplate: '$%{y:.0f}<extra>expiry</extra>' },
+        { x: xs, y: t0, name: 'T+' + fwd + ' (today)', type: 'scatter', mode: 'lines', line: { color: cssv('--accent'), width: 2 }, hovertemplate: '$%{y:.0f}<extra>T+' + fwd + '</extra>' }
+      ], layout, cfg).then(() => document.getElementById('payoff-spy').classList.remove('skel'));
+    }
+
+    function drawXlkPayoff() {
+      const T = XLK.dte / 365;
+      const xs = [], exp = [], t0 = [];
+      for (let p = 195; p <= 245; p += 0.5) {
+        xs.push(p);
+        exp.push((XLK.credit - Math.max(XLK.strike - p, 0)) * 100);
+        t0.push((XLK.credit - bsPut(p, XLK.strike, T, XLK.iv)) * 100);
+      }
+      const layout = {
+        ...dark,
+        margin: { l: 52, r: 14, t: 8, b: 32 },
+        hovermode: 'x unified',
+        uirevision: 'payoff-xlk',
+        xaxis: { ...dark.xaxis, title: { text: 'XLK price', font: { size: 11 } }, range: [195, 245], fixedrange: true, showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot' },
+        yaxis: { ...dark.yaxis, tickprefix: '$', range: [-2450, 330], fixedrange: true, zeroline: true, zerolinecolor: cssv('--grid') },
+        legend: { orientation: 'h', y: 1.12, font: { size: 10 } },
+        shapes: [
+          { type: 'line', x0: XLK.spot, x1: XLK.spot, y0: -2290, y1: 210, line: { color: cssv('--accent'), width: 1.5, dash: 'dot' } },
+          { type: 'line', x0: XLK.be, x1: XLK.be, y0: -2290, y1: 210, line: { color: cssv('--amber'), width: 1, dash: 'dash' } }
+        ],
+        annotations: [
+          { x: XLK.spot, y: 210, text: 'now $' + XLK.spot.toFixed(2), showarrow: false, yshift: 12, font: { color: cssv('--accent'), size: 10 } },
+          { x: XLK.be, y: -2290, text: 'break-even $' + XLK.be.toFixed(2), showarrow: false, yshift: -2, xshift: 8, xanchor: 'left', font: { color: cssv('--amber'), size: 10 } },
+          { x: 200, y: -1500, text: 'loss keeps growing — undefined risk', showarrow: false, font: { color: cssv('--red'), size: 10 } }
+        ]
+      };
+      Plotly.react('payoff-xlk', [
+        { x: xs, y: exp, name: 'At expiration', type: 'scatter', mode: 'lines', line: { color: cssv('--amber'), width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(214,52,44,.06)', hovertemplate: '$%{y:.0f}<extra>expiry</extra>' },
+        { x: xs, y: t0, name: 'T+0 (today)', type: 'scatter', mode: 'lines', line: { color: cssv('--accent'), width: 2 }, hovertemplate: '$%{y:.0f}<extra>T+0</extra>' }
+      ], layout, cfg).then(() => document.getElementById('payoff-xlk').classList.remove('skel'));
+    }
+
+    // P&L matrix: spread P&L across price (y) × days from now (x), zmid 0 = break-even band
+    function drawSpyHeat() {
+      const iv = 0.18;
+      const days = [], prices = [], z = [];
+      for (let d = 0; d <= SPY.dte; d += 2) days.push(d);
+      for (let p = 560; p <= 595; p += 2.5) prices.push(p);
+      prices.forEach(p => z.push(days.map(d =>
+        Math.round((SPY.credit - spySpread(p, Math.max(SPY.dte - d, 0.4) / 365, iv)) * 100))));
+      Plotly.react('heat-spy', [{
+        x: days, y: prices, z, type: 'heatmap', zmid: 0, xgap: 1, ygap: 1,
+        colorscale: [[0, cssv('--heat-lo')], [0.35, cssv('--heat-mid')], [0.65, cssv('--heat-mid')], [1, cssv('--heat-hi')]],
+        showscale: false, hovertemplate: 'day %{x} · $%{y}<br>P&L $%{z}<extra></extra>'
+      }], {
+        ...dark, margin: { l: 46, r: 14, t: 8, b: 32 },
+        xaxis: { ...dark.xaxis, title: { text: 'days from now', font: { size: 11 } }, fixedrange: true },
+        yaxis: { ...dark.yaxis, tickprefix: '$', fixedrange: true }
+      }, cfg).then(() => document.getElementById('heat-spy').classList.remove('skel'));
+    }
+
+    function drawPositions() {
+      if (pDrawn) return; pDrawn = true;
+      drawSpyPayoff();
+      drawSpyHeat();
+      drawXlkPayoff();
+    }
+    // sliders re-render the T+0 curve instantly (~280 points, well under a frame)
+    ['iv-spy', 'df-spy'].forEach(id => document.getElementById(id).addEventListener('input', drawSpyPayoff));
+
+    // Positions is the home view — draw on load
+    drawPositions();
+
+    // Glossary live filter
+    const gq = document.getElementById('glossfilter');
+    if (gq) gq.addEventListener('input', () => {
+      const q = gq.value.trim().toLowerCase();
+      let any = false;
+      document.querySelectorAll('#learn .gsec').forEach(secEl => {
+        let vis = 0;
+        secEl.querySelectorAll('.g').forEach(card => {
+          const hit = !q || card.textContent.toLowerCase().includes(q);
+          card.style.display = hit ? '' : 'none';
+          if (hit) vis++;
+        });
+        secEl.style.display = vis ? '' : 'none';
+        any = any || vis > 0;
+      });
+      document.getElementById('glossempty').style.display = any ? 'none' : '';
+    });
+
+    // ===== Yahoo-Finance-style interactive equity charts =====
+    // Deterministic daily business-day series (no Math.random, so it's stable across reloads).
+    function genDaily(start, count, startEquity, driftPerDay, dayVol) {
+      const dates = [], close = [], custom = [];
+      let eq = startEquity;
+      const d = new Date(start);
+      // seeded LCG random walk — deterministic across reloads, but no visible periodicity
+      const rng = (seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)(count * 7 + 13);
+      for (let i = 0; i < count;) {
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) {                    // business days only
+          const prev = eq;
+          let shock = (rng() - 0.5) * 2.2 * dayVol;
+          if (rng() < 0.05) shock -= dayVol * (2 + rng() * 3);   // occasional sharp losing day
+          eq = Math.max(0, eq + driftPerDay + shock);
+          const dayPnl = eq - prev, pct = prev ? (dayPnl / prev) * 100 : 0;
+          dates.push(d.toISOString().slice(0, 10));
+          close.push(Math.round(eq));
+          custom.push([
+            (dayPnl >= 0 ? '+$' : '−$') + Math.abs(Math.round(dayPnl)).toLocaleString(),
+            (pct >= 0 ? '+' : '−') + Math.abs(pct).toFixed(2) + '%',
+            Math.max(0, Math.round(2 + Math.abs(shock) / dayVol * 3))
+          ]);
+          i++;
+        }
+        d.setDate(d.getDate() + 1);
+      }
+      return { dates, close, custom };
+    }
+
+    // crosshair spike config shared by the interactive charts — theme-aware
+    const spike = () => ({ showspikes: true, spikemode: 'across', spikesnap: 'cursor', spikecolor: cssv('--muted'), spikethickness: 1, spikedash: 'dot' });
+
+    function yahooEquityChart(divId, series, lineColor, valueLabel) {
+      const last = series.close[series.close.length - 1];
+      const up = last >= series.close[0];
+      const tag = up ? cssv('--green') : cssv('--red');
+      // no zero-fill: filling to $0 flattens a 34k→46k curve into a ribbon and hides drawdowns
+      const trace = {
+        x: series.dates, y: series.close, customdata: series.custom,
+        type: 'scatter', mode: 'lines', line: { color: lineColor, width: 1.8 },
+        hovertemplate:
+          '<b>%{x|%b %d, %Y}</b><br>' +
+          valueLabel + '   <b>$%{y:,.0f}</b><br>' +
+          'Day P&L   %{customdata[0]}<br>' +
+          'Change    %{customdata[1]}<br>' +
+          'Trades    %{customdata[2]}<extra></extra>'
+      };
+      const layout = {
+        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: cssv('--muted'), size: 11, family: '"JetBrains Mono", monospace' },
+        margin: { l: 8, r: 84, t: 38, b: 26 },
+        hovermode: 'x', dragmode: 'zoom', spikedistance: -1, hoverdistance: -1,
+        hoverlabel: { bgcolor: cssv('--panel'), bordercolor: cssv('--line'), align: 'left', font: { color: cssv('--ink'), size: 12 } },
+        xaxis: Object.assign({
+          type: 'date', gridcolor: cssv('--grid'), showline: false,
+          rangeselector: {
+            buttons: [
+              { count: 1, label: '1M', step: 'month', stepmode: 'backward' },
+              { count: 3, label: '3M', step: 'month', stepmode: 'backward' },
+              { count: 6, label: '6M', step: 'month', stepmode: 'backward' },
+              { label: 'YTD', step: 'year', stepmode: 'todate', count: 1 },
+              { count: 1, label: '1Y', step: 'year', stepmode: 'backward' },
+              { step: 'all', label: 'All' }
+            ],
+            bgcolor: cssv('--panel2'), activecolor: cssv('--accent'),
+            font: { color: cssv('--ink'), size: 11 },
+            x: 0, y: 1.22, xanchor: 'left', bordercolor: cssv('--line'), borderwidth: 1
+          }
+        }, spike()),
+        yaxis: Object.assign({ side: 'right', gridcolor: cssv('--grid'), tickprefix: '$', fixedrange: true, zeroline: false }, spike()),
+        shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: last, y1: last, line: { color: tag, width: 1, dash: 'dash' } }],
+        annotations: [{ xref: 'paper', x: 1.004, y: last, xanchor: 'left', yanchor: 'middle', text: ' $' + last.toLocaleString() + ' ', showarrow: false, bgcolor: tag, font: { color: '#fff', size: 11 }, borderpad: 3 }]
+      };
+      Plotly.react(divId, [trace], layout, { displayModeBar: false, responsive: true, scrollZoom: false });
+    }
+
+    let aDrawn = false;
+    function drawAnalytics() {
+      if (aDrawn) return; aDrawn = true;
+      yahooEquityChart('equity', genDaily('2025-09-02', 195, 34000, 93, 130), cssv('--green'), 'Equity');
+      // rule-adherence keeps a simple line, now with crosshair + hover box
+      const days = Array.from({ length: 20 }, (_, i) => 'T' + (i + 1));
+      const adh = [60, 65, 62, 70, 72, 68, 75, 78, 74, 80, 82, 79, 85, 83, 88, 84, 90, 87, 92, 79];
+      Plotly.react('adherence', [{
+        x: days, y: adh, type: 'scatter', mode: 'lines+markers',
+        line: { color: cssv('--accent'), width: 2 }, marker: { size: 5 },
+        hovertemplate: '%{x}<br>Adherence <b>%{y}%</b><extra></extra>'
+      }], {
+        ...dark, hovermode: 'x',
+        hoverlabel: { bgcolor: cssv('--panel'), bordercolor: cssv('--line'), font: { color: cssv('--ink'), size: 12 } },
+        xaxis: Object.assign({ ...dark.xaxis }, spike()),
+        yaxis: Object.assign({ ...dark.yaxis, range: [40, 100], ticksuffix: '%' }, spike())
+      }, cfg);
+    }
+
+    let bDrawn = false;
+    function drawBacktest() {
+      if (bDrawn) return; bDrawn = true;
+      // ~8 years of history so the 1M/3M/6M/YTD/1Y/All buttons all have range to work with
+      yahooEquityChart('btequity', genDaily('2018-06-01', 2000, 10000, 24, 95), cssv('--accent'), 'Equity');
+      const dte = ['30 DTE', '45 DTE'], delta = ['Δ0.15', 'Δ0.20', 'Δ0.25'];
+      const z = [[1.42, 1.74, 1.61], [1.55, 1.81, 1.49]];
+      Plotly.react('heatmap', [{
+        z, x: delta, y: dte, type: 'heatmap', colorscale: [[0, cssv('--heat-lo')], [0.5, cssv('--heat-mid')], [1, cssv('--heat-hi')]], showscale: true,
+        text: z, texttemplate: '%{text}', textfont: { color: cssv('--ink') }
+      }], { ...dark, margin: { l: 60, r: 14, t: 10, b: 30 } }, cfg);
+    }
+
+    // ===== Scanner: candlestick regime chart — 20/50 EMA, volume, range buttons, crosshair
+    let sDrawn = false;
+    function drawScanner() {
+      if (sDrawn) return; sDrawn = true;
+      // deterministic synthetic OHLC ending at the mock spot price
+      const rng = (seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)(42);
+      const N = 240, dates = [], o = [], h = [], l = [], c = [], vol = [];
+      let px = 470;
+      const today = new Date('2026-06-12');
+      for (let k = 0; k < N; k++) {
+        const d = new Date(today); d.setDate(d.getDate() - Math.round((N - k) * 1.45));
+        dates.push(d.toISOString().slice(0, 10));
+        const drift = 0.0011, shock = (rng() - 0.48) * 0.016;
+        const open = px, close = px * (1 + drift + shock);
+        o.push(open); c.push(close);
+        h.push(Math.max(open, close) * (1 + rng() * 0.006));
+        l.push(Math.min(open, close) * (1 - rng() * 0.006));
+        vol.push(40e6 + rng() * 60e6 * (1 + Math.abs(shock) * 40));
+        px = close;
+      }
+      const scale = 581.40 / c[N - 1];
+      [o, h, l, c].forEach(a => a.forEach((v, n) => a[n] = +(v * scale).toFixed(2)));
+      const ema = (arr, n) => {
+        const k = 2 / (n + 1), out = [arr[0]];
+        for (let m = 1; m < arr.length; m++) out.push(arr[m] * k + out[m - 1] * (1 - k));
+        return out;
+      };
+      const up = cssv('--green'), dn = cssv('--red');
+      Plotly.react('market-spy', [
+        {
+          x: dates, open: o, high: h, low: l, close: c, type: 'candlestick', name: 'SPY',
+          increasing: { line: { color: up, width: 1 }, fillcolor: up },
+          decreasing: { line: { color: dn, width: 1 }, fillcolor: dn },
+          yaxis: 'y', whiskerwidth: .4
+        },
+        { x: dates, y: ema(c, 20), type: 'scatter', mode: 'lines', name: 'EMA 20', line: { color: cssv('--accent'), width: 1.4 } },
+        { x: dates, y: ema(c, 50), type: 'scatter', mode: 'lines', name: 'EMA 50 — master gate', line: { color: cssv('--amber'), width: 1.6 } },
+        {
+          x: dates, y: vol, type: 'bar', name: 'Volume', yaxis: 'y2',
+          marker: { color: c.map((v, n) => v >= o[n] ? up : dn), opacity: .45 }, hoverinfo: 'skip'
+        }
+      ], {
+        ...dark,
+        margin: { l: 48, r: 14, t: 30, b: 26 },
+        showlegend: true,
+        legend: { orientation: 'h', y: 1.09, font: { size: 10 } },
+        hovermode: 'x unified',
+        dragmode: 'pan',
+        xaxis: {
+          gridcolor: cssv('--grid'), rangeslider: { visible: false },
+          // default to the last 6 months — 240 candles at full width is too dense a first paint
+          range: [(() => { const s = new Date(today); s.setMonth(s.getMonth() - 6); return s.toISOString().slice(0, 10); })(), dates[N - 1]],
+          showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot',
+          rangeselector: {
+            bgcolor: cssv('--panel2'), activecolor: cssv('--accent'),
+            bordercolor: cssv('--line'), borderwidth: 1, font: { color: cssv('--ink'), size: 10 },
+            buttons: [
+              { count: 1, label: '1M', step: 'month', stepmode: 'backward' },
+              { count: 3, label: '3M', step: 'month', stepmode: 'backward' },
+              { count: 6, label: '6M', step: 'month', stepmode: 'backward' },
+              { step: 'all', label: 'ALL' }
+            ]
+          }
+        },
+        yaxis: { gridcolor: cssv('--grid'), domain: [0.26, 1], tickprefix: '$' },
+        yaxis2: { gridcolor: 'rgba(0,0,0,0)', domain: [0, 0.2], showticklabels: false }
+      }, { ...cfg, scrollZoom: true }).then(() => document.getElementById('market-spy').classList.remove('skel'));
+    }
+
+    // ===== theme switching — charts re-render from the new CSS variables
+    function setTheme(t) {
+      document.documentElement.dataset.theme = t;
+      document.getElementById('themetoggle').textContent = t === 'light' ? '☾ Switch to dark' : '☀ Switch to light';
+      dark = plotTheme();
+      pDrawn = aDrawn = bDrawn = sDrawn = false;
+      const v = document.querySelector('.view.active').id;
+      if (v === 'positions') drawPositions();
+      if (v === 'analytics') drawAnalytics();
+      if (v === 'backtester') drawBacktest();
+      if (v === 'scanner') drawScanner();
+    }
+    document.getElementById('themetoggle').addEventListener('click', () =>
+      setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+  </script>
+</body>
+
+</html>

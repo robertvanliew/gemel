@@ -1226,6 +1226,84 @@
       font-weight: 600
     }
 
+    /* process grade chip */
+    .grade {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 2px;
+      font-weight: 700;
+      font-size: 12px
+    }
+
+    .grade-A,
+    .grade-B {
+      background: #e2f3e9;
+      color: var(--green)
+    }
+
+    .grade-C {
+      background: #fdf3dd;
+      color: var(--amber)
+    }
+
+    .grade-D,
+    .grade-F {
+      background: #fdeae8;
+      color: var(--red)
+    }
+
+    /* pre-trade flight check */
+    .fc {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 4px 0 12px;
+      background: var(--panel2)
+    }
+
+    .fc-verdict {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--muted)
+    }
+
+    .fc-verdict.ok {
+      color: var(--green)
+    }
+
+    .fc-verdict.bad {
+      color: var(--red)
+    }
+
+    .fc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px 16px
+    }
+
+    .fc-grid>div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .fc-k {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted)
+    }
+
+    .fc-v {
+      font-size: 15px;
+      font-weight: 600
+    }
+
     /* cockpit cards are links */
     a.card.cockpit {
       cursor: pointer;
@@ -1501,7 +1579,7 @@
                   <th>Ticker</th>
                   <th>Strategy</th>
                   <th>P&L</th>
-                  <th>Rules</th>
+                  <th><span class="term" data-tip="Process grade — how well you followed your own rules on this trade (A = all rules followed), independent of whether it won or lost. Separates 'the strategy didn't work' from 'I didn't follow the strategy.'">Grade</span></th>
                   <th>Result</th>
                 </tr>
               </thead>
@@ -1615,8 +1693,18 @@
                 <div class="field locked"><label>Time stop <span class="req">*</span></label><input name="time_stop" value="Close or roll at 21 DTE" required></div>
                 <div class="field"><label>Reason for entry</label><input name="reason_for_entry" value="Above 20/50 EMA, RSI 58, support hold" required></div>
               </div>
-              <div class="row"><button class="btn" type="submit" id="jrnl-save">Save trade</button><span class="muted" style="font-size:12px" id="jrnl-msg">Won't save
-                  without all three exit fields — the plan is written when you're calm, not when the trade is moving.</span></div>
+              <div class="fc">
+                <div class="fc-verdict" id="fc-verdict">Flight check — fill in strikes &amp; credit to run it</div>
+                <div class="fc-grid">
+                  <div><span class="fc-k">Max loss</span><span class="fc-v" id="fc-ml">—</span></div>
+                  <div><span class="fc-k">% of account</span><span class="fc-v" id="fc-cap">—</span></div>
+                  <div><span class="fc-k">Return on risk</span><span class="fc-v" id="fc-ror">—</span></div>
+                  <div><span class="fc-k">Break-even</span><span class="fc-v" id="fc-be">—</span></div>
+                  <div><span class="fc-k">Short-leg Δ</span><span class="fc-v" id="fc-delta">—</span></div>
+                  <div><span class="fc-k">IV rank</span><span class="fc-v" id="fc-ivr">—</span></div>
+                </div>
+              </div>
+              <div class="row"><button class="btn" type="submit" id="jrnl-save">Save trade</button><span class="muted" style="font-size:12px" id="jrnl-msg">Won't save until the flight check clears the 2% max-loss cap and all three exit fields are written — the plan is set when you're calm, not when the trade is moving.</span></div>
             </form>
           </div>
         </div>
@@ -1677,6 +1765,16 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="panel">
+          <h3>Losing-streak simulator <span class="help" data-help="Even a winning strategy hits long losing streaks — they're variance, not a broken system. This runs 5,000 simulated runs of N trades at your win rate and shows how long your worst losing streak is likely to get, so a rough patch doesn't shake you out of a sound plan."></span></h3>
+          <div class="chartctl">
+            <label>Win rate <output id="ss-wr-out">70%</output><input type="range" id="ss-wr" min="40" max="95" value="70"></label>
+            <label>Trades <output id="ss-n-out">100</output><input type="range" id="ss-n" min="20" max="300" step="10" value="100"></label>
+          </div>
+          <div id="ss-readout" class="softtext" style="margin:6px 0 4px"></div>
+          <div id="ss-chart" style="height:220px"></div>
         </div>
       </section>
 
@@ -3057,10 +3155,11 @@
       const closedTb = document.getElementById('jrnl-closed');
       if (closedTb) closedTb.innerHTML = d.closed.length ? d.closed.map(t => {
         const win = (t.pnl ?? 0) >= 0;
-        const adh = t.adherence == null ? '—' : `<span class="${adhClass(t.adherence)}">${t.adherence.toFixed(0)}%</span>`;
+        const grade = t.grade == null ? '<span class="softtext">—</span>'
+          : `<span class="grade grade-${t.grade}" title="${t.adherence != null ? t.adherence.toFixed(0) + '% of rules followed' : ''}">${t.grade}</span>`;
         return `<tr><td>${t.ticker}</td><td>${STRAT_LABEL[t.strategy] || t.strategy}</td>
           <td style="color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : '−'}${fmtUSD(Math.abs(t.pnl ?? 0))}</td>
-          <td>${adh}</td><td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
+          <td>${grade}</td><td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
       }).join('') : '<tr><td colspan="5" class="softtext">No closed trades yet.</td></tr>';
       const campTb = document.getElementById('jrnl-campaigns');
       if (campTb) campTb.innerHTML = d.campaigns.length ? d.campaigns.map(c => {
@@ -3081,6 +3180,44 @@
         .then(d => { journalLoaded = true; renderJournal(d); }).catch(() => { });
     }
     document.querySelectorAll('.nav a[data-view="journal"]').forEach(a => a.addEventListener('click', () => loadJournal(false)));
+
+    // ---- pre-trade flight check: live max-loss/cap/RoR/delta/IVR; gates Save on the 2% cap ----
+    let fcTimer = null;
+    function runFlightCheck() {
+      const form = document.getElementById('jrnl-form'); if (!form) return;
+      const f = new FormData(form);
+      const dteStr = (String(f.get('delta_dte') || '').split('/')[1] || '38').trim();
+      const qs = new URLSearchParams({
+        ticker: f.get('ticker') || 'SPY', strategy: f.get('strategy') || 'bull_put_spread',
+        credit: f.get('credit_debit') || '0', short_strike: f.get('short_strike') || '', long_strike: f.get('long_strike') || '', dte: dteStr || '38'
+      });
+      fetch('/api/flightcheck?' + qs).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+        flipLive();
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        set('fc-ml', d.max_loss != null ? fmtUSD(d.max_loss) : '—');
+        set('fc-cap', d.cap_pct != null ? d.cap_pct.toFixed(1) + '%' : '—');
+        set('fc-ror', d.return_on_risk != null ? (d.return_on_risk * 100).toFixed(0) + '%' : '—');
+        set('fc-be', d.break_even != null ? fmtUSD(d.break_even) : '—');
+        set('fc-delta', d.short_delta != null ? Math.abs(d.short_delta).toFixed(2) : '—');
+        set('fc-ivr', d.ivr != null ? d.ivr.toFixed(0) : '—');
+        const v = document.getElementById('fc-verdict'), save = document.getElementById('jrnl-save');
+        if (d.within_cap === true) {
+          v.textContent = `✓ Clears the 2% cap — ${fmtUSD(d.max_loss)} risked of ${fmtUSD(d.cap_dollars)} allowed`;
+          v.className = 'fc-verdict ok'; if (save) save.disabled = false;
+        } else if (d.within_cap === false) {
+          v.textContent = `✗ Over the 2% cap — ${fmtUSD(d.max_loss)} exceeds ${fmtUSD(d.cap_dollars)}. Size down; it won't reach the journal.`;
+          v.className = 'fc-verdict bad'; if (save) save.disabled = true;
+        } else {
+          v.textContent = d.error || 'Flight check — fill in strikes & credit to run it';
+          v.className = 'fc-verdict'; if (save) save.disabled = true;
+        }
+      }).catch(() => { });
+    }
+    if (jformExists()) {
+      document.getElementById('jrnl-form').addEventListener('input', () => { clearTimeout(fcTimer); fcTimer = setTimeout(runFlightCheck, 400); });
+      runFlightCheck();
+    }
+    function jformExists() { return !!document.getElementById('jrnl-form'); }
 
     const jform = document.getElementById('jrnl-form');
     if (jform) jform.addEventListener('submit', ev => {
@@ -3204,6 +3341,9 @@
       flipLive();
       window.__liveAnalytics = true;  // suppress the sample drawAnalytics from here on
       const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+      // seed the streak simulator with your real win rate once you have closed trades
+      const ssWr = document.getElementById('ss-wr');
+      if (ssWr && d.n_trades > 0) { ssWr.value = Math.round(d.win_rate); if (typeof runStreakSim === 'function') runStreakSim(); }
       set('an-winrate', d.win_rate.toFixed(0) + '%');
       set('an-ntrades', d.n_trades + ' closed trade' + (d.n_trades === 1 ? '' : 's'));
       set('an-avgwl', fmtUSD(d.avg_win) + ' / ' + fmtUSD(Math.abs(d.avg_loss)));
@@ -3247,10 +3387,44 @@
         .then(d => { analyticsLoaded = true; renderAnalytics(d); }).catch(() => { });
     }
     // force a re-render on click so the live charts draw at full size in the now-visible panel
-    document.querySelectorAll('.nav a[data-view="analytics"]').forEach(a => a.addEventListener('click', () => loadAnalytics(true)));
+    document.querySelectorAll('.nav a[data-view="analytics"]').forEach(a => a.addEventListener('click', () => { loadAnalytics(true); runStreakSim(); }));
+
+    // ---- Monte Carlo losing-streak simulator ----
+    function simulateStreaks(p, n, runs) {
+      const out = new Array(runs);
+      for (let r = 0; r < runs; r++) { let cur = 0, mx = 0; for (let i = 0; i < n; i++) { if (Math.random() < p) cur = 0; else { cur++; if (cur > mx) mx = cur; } } out[r] = mx; }
+      return out;
+    }
+    function runStreakSim() {
+      const wrEl = document.getElementById('ss-wr'), nEl = document.getElementById('ss-n');
+      if (!wrEl || !document.getElementById('ss-chart')) return;
+      const p = (+wrEl.value) / 100, n = +nEl.value, runs = 5000;
+      document.getElementById('ss-wr-out').textContent = wrEl.value + '%';
+      document.getElementById('ss-n-out').textContent = n;
+      const res = simulateStreaks(p, n, runs).sort((a, b) => a - b);
+      const median = res[Math.floor(runs * 0.5)], p95 = res[Math.floor(runs * 0.95)], worst = res[runs - 1];
+      // histogram
+      const maxv = worst, counts = new Array(maxv + 1).fill(0);
+      res.forEach(v => counts[v]++);
+      const x = counts.map((_, i) => i), y = counts.map(c => +(c / runs * 100).toFixed(1));
+      Plotly.react('ss-chart', [{
+        x, y, type: 'bar', marker: { color: x.map(v => v >= p95 ? cssv('--red') : cssv('--accent')), opacity: .85 },
+        hovertemplate: '%{x} losses in a row<br>%{y}% of runs<extra></extra>'
+      }], {
+        ...dark, margin: { l: 40, r: 14, t: 8, b: 34 },
+        xaxis: { ...dark.xaxis, title: { text: 'longest losing streak (consecutive losses)', font: { size: 11 } }, dtick: 1 },
+        yaxis: { ...dark.yaxis, ticksuffix: '%' }
+      }, cfg);
+      const ro = document.getElementById('ss-readout');
+      if (ro) ro.innerHTML = `At a <b>${wrEl.value}%</b> win rate over <b>${n}</b> trades (5,000 simulated runs): `
+        + `typical worst streak <b>${median}</b> in a row · 1-in-20 stretch hits <b>${p95}</b> · worst simulated <b>${worst}</b>. `
+        + `A losing streak is variance — your <i>rules</i>, not your nerve, decide whether a sound strategy stays in play.`;
+    }
+    ['ss-wr', 'ss-n'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('input', runStreakSim); });
 
     loadJournal(false);
     loadAnalytics(false);
+    runStreakSim();
 
     // ---- Backtester (live) ----
     const REGIME_ICON = { trending_up: 'Trending up', choppy: 'Choppy', declining: 'Declining' };

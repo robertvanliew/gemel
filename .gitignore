@@ -13,3 +13,5 @@ _screens/
 .tmp/
 data/cache/
 *.sqlite
+*.db
+gemel.db

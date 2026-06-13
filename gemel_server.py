@@ -1,9 +1,10 @@
-"""FastAPI app — serves the local dashboard and the live data API.
+"""Gemel server — FastAPI app serving the local dashboard and the read-only API.
 
 Read-only with respect to the brokerage: endpoints read market data, or
 read/write the LOCAL journal database. Nothing here places an order.
-Launch with run.bat (uvicorn) -> localhost:8000.
+Launch with run.bat (uvicorn gemel_server:app) -> localhost:8000.
 """
+import os
 from datetime import date, datetime
 from pathlib import Path
 
@@ -16,18 +17,24 @@ from analytics.service import compute_analytics
 from backtester.engine import run_backtest
 from core.data.factory import make_adapter
 from core.db import init_db, make_engine
+from core.options.black_scholes import put_delta
+from core.options.iv_proxy import iv_rank, vol_index_symbol
+from flightcheck.service import cap_pct, max_loss_for, spread_metrics, within_cap
 from journal import service as journal
 from market.service import compute_breadth
 from scanner.scan import run_scan
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 DASHBOARD = ROOT / "dashboard-mockup.html"
+
+# Paper account size used for the 2% per-trade max-loss cap (override in .env).
+ACCOUNT_SIZE = float(os.getenv("ACCOUNT_SIZE", "35000"))
+MAX_LOSS_CAP_PCT = 0.02
 
 app = FastAPI(title="Gemel", docs_url=None, redoc_url=None)
 
-# Local journal DB (data/trading.sqlite). Created on first launch.
-(ROOT / "data").mkdir(exist_ok=True)
-_engine = make_engine(f"sqlite:///{(ROOT / 'data' / 'trading.sqlite').as_posix()}")
+# Local journal DB (gemel.db). Created on first launch.
+_engine = make_engine(f"sqlite:///{(ROOT / 'gemel.db').as_posix()}")
 init_db(_engine)
 
 
@@ -114,6 +121,50 @@ def backtest(ticker: str = "SPY", strategy: str = "bull_put_spread",
     return JSONResponse(result)
 
 
+# ---------- flight check ----------
+@app.get("/api/flightcheck")
+def flightcheck(ticker: str = "SPY", strategy: str = "bull_put_spread",
+                short_strike: float | None = None, long_strike: float | None = None,
+                credit: float = 0.0, qty: int = 1, dte: int = 38) -> JSONResponse:
+    """Pre-trade flight check: max loss, return on risk, break-even, the 2% cap
+    verdict, plus best-effort live short-leg delta + IV rank. Read-only."""
+    out: dict = {"strategy": strategy, "account_size": ACCOUNT_SIZE,
+                 "cap_dollars": round(ACCOUNT_SIZE * MAX_LOSS_CAP_PCT, 2)}
+    try:
+        ml = max_loss_for(strategy, short_strike=short_strike, long_strike=long_strike, credit_debit=credit, qty=qty)
+        out["max_loss"] = ml
+        out["cap_pct"] = cap_pct(ml, ACCOUNT_SIZE)
+        out["within_cap"] = within_cap(ml, ACCOUNT_SIZE, MAX_LOSS_CAP_PCT)
+    except ValueError as ex:
+        out["error"] = str(ex)
+    if strategy == "bull_put_spread" and short_strike and long_strike:
+        try:
+            m = spread_metrics(short_strike, long_strike, credit, qty)
+            out.update({"return_on_risk": m["return_on_risk"], "break_even": m["break_even"],
+                        "max_profit": m["max_profit"], "width": m["width"]})
+        except ValueError:
+            pass
+    try:  # best-effort live enrichment
+        adapter = make_adapter()
+        idx = vol_index_symbol(ticker)
+        if idx:
+            vix = adapter.get_daily_bars(idx, lookback_days=300)["close"]
+            sigma = float(vix.iloc[-1]) / 100.0
+            out["ivr"] = round(iv_rank(vix.tail(252), float(vix.iloc[-1])), 0)
+        else:
+            import numpy as np
+            closes = adapter.get_daily_bars(ticker, lookback_days=300)["close"]
+            roll = (np.log(closes / closes.shift(1)).rolling(20).std() * (252 ** 0.5) * 100).dropna()
+            sigma = float(roll.iloc[-1]) / 100.0
+            out["ivr"] = round(iv_rank(roll.tail(252), float(roll.iloc[-1])), 0)
+        out["spot"] = round(float(adapter.get_quote(ticker)), 2)
+        if short_strike:
+            out["short_delta"] = round(put_delta(out["spot"], short_strike, max(dte, 1) / 365, sigma), 3)
+    except Exception:
+        pass
+    return JSONResponse(out)
+
+
 # ---------- journal ----------
 class OpenTradeBody(BaseModel):
     ticker: str
@@ -158,10 +209,15 @@ def _trade_dict(t) -> dict:
     }
 
 
+def _with_grade(session, t) -> dict:
+    adh = journal.adherence_pct(session, t.id)
+    return {**_trade_dict(t), "adherence": adh, "grade": journal.process_grade(adh)}
+
+
 @app.get("/api/journal/trades")
 def list_trades(session: Session = Depends(get_session)) -> dict:
-    open_ = [{**_trade_dict(t), "adherence": journal.adherence_pct(session, t.id)} for t in journal.list_open(session)]
-    closed = [{**_trade_dict(t), "adherence": journal.adherence_pct(session, t.id)} for t in journal.list_closed(session)]
+    open_ = [_with_grade(session, t) for t in journal.list_open(session)]
+    closed = [_with_grade(session, t) for t in journal.list_closed(session)]
     camps = [
         {"campaign": {"id": c["campaign"].id, "ticker": c["campaign"].ticker,
                        "strategy": c["campaign"].strategy, "status": c["campaign"].status},
@@ -173,6 +229,18 @@ def list_trades(session: Session = Depends(get_session)) -> dict:
 
 @app.post("/api/journal/open")
 def open_trade(body: OpenTradeBody, session: Session = Depends(get_session)) -> dict:
+    # Server-side 2% max-loss cap (README guardrail) — enforced in addition to the UI.
+    try:
+        ml = max_loss_for(body.strategy, short_strike=body.short_strike,
+                          long_strike=body.long_strike, credit_debit=body.credit_debit, qty=body.qty)
+    except ValueError:
+        ml = None  # incomplete strikes -> can't compute; let the exit-plan rule gate it
+    if ml is not None and not within_cap(ml, ACCOUNT_SIZE, MAX_LOSS_CAP_PCT):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Max loss ${ml:,.0f} is {cap_pct(ml, ACCOUNT_SIZE):.1f}% of the account — over the "
+                   f"{int(MAX_LOSS_CAP_PCT * 100)}% cap (${ACCOUNT_SIZE * MAX_LOSS_CAP_PCT:,.0f}). "
+                   f"Size down or use a defined-risk spread.")
     try:
         t = journal.open_trade(session, opened_at=datetime.now(), **body.model_dump())
     except ValueError as e:

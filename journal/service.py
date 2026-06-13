@@ -3,6 +3,24 @@ from sqlmodel import Session, select
 from core.db import Trade, TradeRule, Campaign
 
 
+def process_grade(adherence_pct: float | None) -> str | None:
+    """Letter grade for how well a trade followed its OWN rules (process, not P&L).
+
+    A >= 90, B >= 80, C >= 70, D >= 60, else F. None if no rules were logged.
+    """
+    if adherence_pct is None:
+        return None
+    if adherence_pct >= 90:
+        return "A"
+    if adherence_pct >= 80:
+        return "B"
+    if adherence_pct >= 70:
+        return "C"
+    if adherence_pct >= 60:
+        return "D"
+    return "F"
+
+
 def open_trade(
     session: Session,
     *,

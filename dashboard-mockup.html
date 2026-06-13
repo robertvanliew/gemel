@@ -1226,6 +1226,55 @@
       font-weight: 600
     }
 
+    /* pre-trade flight check */
+    .fc {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 4px 0 12px;
+      background: var(--panel2)
+    }
+
+    .fc-verdict {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--muted)
+    }
+
+    .fc-verdict.ok {
+      color: var(--green)
+    }
+
+    .fc-verdict.bad {
+      color: var(--red)
+    }
+
+    .fc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px 16px
+    }
+
+    .fc-grid>div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .fc-k {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted)
+    }
+
+    .fc-v {
+      font-size: 15px;
+      font-weight: 600
+    }
+
     /* cockpit cards are links */
     a.card.cockpit {
       cursor: pointer;
@@ -1615,8 +1664,18 @@
                 <div class="field locked"><label>Time stop <span class="req">*</span></label><input name="time_stop" value="Close or roll at 21 DTE" required></div>
                 <div class="field"><label>Reason for entry</label><input name="reason_for_entry" value="Above 20/50 EMA, RSI 58, support hold" required></div>
               </div>
-              <div class="row"><button class="btn" type="submit" id="jrnl-save">Save trade</button><span class="muted" style="font-size:12px" id="jrnl-msg">Won't save
-                  without all three exit fields — the plan is written when you're calm, not when the trade is moving.</span></div>
+              <div class="fc">
+                <div class="fc-verdict" id="fc-verdict">Flight check — fill in strikes &amp; credit to run it</div>
+                <div class="fc-grid">
+                  <div><span class="fc-k">Max loss</span><span class="fc-v" id="fc-ml">—</span></div>
+                  <div><span class="fc-k">% of account</span><span class="fc-v" id="fc-cap">—</span></div>
+                  <div><span class="fc-k">Return on risk</span><span class="fc-v" id="fc-ror">—</span></div>
+                  <div><span class="fc-k">Break-even</span><span class="fc-v" id="fc-be">—</span></div>
+                  <div><span class="fc-k">Short-leg Δ</span><span class="fc-v" id="fc-delta">—</span></div>
+                  <div><span class="fc-k">IV rank</span><span class="fc-v" id="fc-ivr">—</span></div>
+                </div>
+              </div>
+              <div class="row"><button class="btn" type="submit" id="jrnl-save">Save trade</button><span class="muted" style="font-size:12px" id="jrnl-msg">Won't save until the flight check clears the 2% max-loss cap and all three exit fields are written — the plan is set when you're calm, not when the trade is moving.</span></div>
             </form>
           </div>
         </div>
@@ -3081,6 +3140,44 @@
         .then(d => { journalLoaded = true; renderJournal(d); }).catch(() => { });
     }
     document.querySelectorAll('.nav a[data-view="journal"]').forEach(a => a.addEventListener('click', () => loadJournal(false)));
+
+    // ---- pre-trade flight check: live max-loss/cap/RoR/delta/IVR; gates Save on the 2% cap ----
+    let fcTimer = null;
+    function runFlightCheck() {
+      const form = document.getElementById('jrnl-form'); if (!form) return;
+      const f = new FormData(form);
+      const dteStr = (String(f.get('delta_dte') || '').split('/')[1] || '38').trim();
+      const qs = new URLSearchParams({
+        ticker: f.get('ticker') || 'SPY', strategy: f.get('strategy') || 'bull_put_spread',
+        credit: f.get('credit_debit') || '0', short_strike: f.get('short_strike') || '', long_strike: f.get('long_strike') || '', dte: dteStr || '38'
+      });
+      fetch('/api/flightcheck?' + qs).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+        flipLive();
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        set('fc-ml', d.max_loss != null ? fmtUSD(d.max_loss) : '—');
+        set('fc-cap', d.cap_pct != null ? d.cap_pct.toFixed(1) + '%' : '—');
+        set('fc-ror', d.return_on_risk != null ? (d.return_on_risk * 100).toFixed(0) + '%' : '—');
+        set('fc-be', d.break_even != null ? fmtUSD(d.break_even) : '—');
+        set('fc-delta', d.short_delta != null ? Math.abs(d.short_delta).toFixed(2) : '—');
+        set('fc-ivr', d.ivr != null ? d.ivr.toFixed(0) : '—');
+        const v = document.getElementById('fc-verdict'), save = document.getElementById('jrnl-save');
+        if (d.within_cap === true) {
+          v.textContent = `✓ Clears the 2% cap — ${fmtUSD(d.max_loss)} risked of ${fmtUSD(d.cap_dollars)} allowed`;
+          v.className = 'fc-verdict ok'; if (save) save.disabled = false;
+        } else if (d.within_cap === false) {
+          v.textContent = `✗ Over the 2% cap — ${fmtUSD(d.max_loss)} exceeds ${fmtUSD(d.cap_dollars)}. Size down; it won't reach the journal.`;
+          v.className = 'fc-verdict bad'; if (save) save.disabled = true;
+        } else {
+          v.textContent = d.error || 'Flight check — fill in strikes & credit to run it';
+          v.className = 'fc-verdict'; if (save) save.disabled = true;
+        }
+      }).catch(() => { });
+    }
+    if (jformExists()) {
+      document.getElementById('jrnl-form').addEventListener('input', () => { clearTimeout(fcTimer); fcTimer = setTimeout(runFlightCheck, 400); });
+      runFlightCheck();
+    }
+    function jformExists() { return !!document.getElementById('jrnl-form'); }
 
     const jform = document.getElementById('jrnl-form');
     if (jform) jform.addEventListener('submit', ev => {

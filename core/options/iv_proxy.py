@@ -20,6 +20,7 @@ def vol_index_symbol(ticker: str) -> str | None:
 
 def realized_vol(closes: pd.Series, window: int | None = None) -> float:
     """Annualized std-dev of daily log returns (optionally over a tail window)."""
+    closes = pd.Series(closes)
     if window is not None:
         closes = closes.tail(window + 1)
     log_returns = np.log(closes / closes.shift(1)).dropna()

@@ -29,3 +29,9 @@ def test_iv_rank_endpoints_and_midpoint():
     assert iv_rank(year, current=10.0) == pytest.approx(0.0)
     assert iv_rank(year, current=30.0) == pytest.approx(100.0)
     assert iv_rank(year, current=20.0) == pytest.approx(50.0)
+
+
+# FIX D — realized_vol accepts list/array-like
+def test_realized_vol_accepts_list():
+    expected = realized_vol(pd.Series([100.0, 101.0, 100.0, 101.0] * 20))
+    assert realized_vol([100.0, 101.0, 100.0, 101.0] * 20) == pytest.approx(expected)

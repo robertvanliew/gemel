@@ -17,6 +17,7 @@ from backtester.engine import run_backtest
 from core.data.factory import make_adapter
 from core.db import init_db, make_engine
 from journal import service as journal
+from market.service import compute_breadth
 from scanner.scan import run_scan
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -59,6 +60,13 @@ def status() -> dict:
         "asof": bars.index[-1].date().isoformat(),
         "spy_spot": round(float(bars["close"].iloc[-1]), 2),
     }
+
+
+@app.get("/api/market")
+def market() -> JSONResponse:
+    """Sector breadth across the 11 S&P sector ETFs for the Today home —
+    advancing/declining, new highs/lows, % above SMA50/200, bull/bear gauge."""
+    return JSONResponse(compute_breadth(make_adapter()))
 
 
 # ---------- scanner ----------

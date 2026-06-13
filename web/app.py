@@ -22,7 +22,7 @@ from scanner.scan import run_scan
 ROOT = Path(__file__).resolve().parent.parent
 DASHBOARD = ROOT / "dashboard-mockup.html"
 
-app = FastAPI(title="Trading Tools", docs_url=None, redoc_url=None)
+app = FastAPI(title="Gemel", docs_url=None, redoc_url=None)
 
 # Local journal DB (data/trading.sqlite). Created on first launch.
 (ROOT / "data").mkdir(exist_ok=True)

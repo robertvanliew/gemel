@@ -3219,14 +3219,25 @@
       // charts from real series (empty-safe)
       const eq = d.equity_curve, adh = d.adherence_over_time;
       const lab = { bgcolor: cssv('--panel'), bordercolor: cssv('--line'), font: { color: cssv('--ink'), size: 12 } };
+      const eqEmpty = eq.length === 0, adhEmpty = adh.length === 0;
       Plotly.react('equity', [{
         x: eq.map(p => p.date), y: eq.map(p => p.equity), type: 'scatter', mode: 'lines',
-        line: { color: cssv('--green'), width: 2 }, hovertemplate: '%{x}<br>Equity <b>%{y:$,.0f}</b><extra></extra>'
-      }], { ...dark, hovermode: 'x', hoverlabel: lab, yaxis: { ...dark.yaxis, tickprefix: '$' }, annotations: eq.length ? [] : [emptyNote('No closed trades yet')] }, cfg);
+        line: { color: cssv('--green'), width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(9,133,81,.06)', hovertemplate: '%{x}<br>Equity <b>%{y:$,.0f}</b><extra></extra>'
+      }], {
+        ...dark, hovermode: 'x', hoverlabel: lab,
+        xaxis: eqEmpty ? { visible: false } : { ...dark.xaxis },
+        yaxis: eqEmpty ? { visible: false } : { ...dark.yaxis, tickprefix: '$' },
+        annotations: eqEmpty ? [emptyNote('No closed trades yet — log and close a trade to start your equity curve.')] : []
+      }, cfg);
       Plotly.react('adherence', [{
         x: adh.map(p => p.date), y: adh.map(p => p.adherence), type: 'scatter', mode: 'lines+markers',
         line: { color: cssv('--accent'), width: 2 }, marker: { size: 5 }, hovertemplate: '%{x}<br>Adherence <b>%{y}%</b><extra></extra>'
-      }], { ...dark, hovermode: 'x', hoverlabel: lab, yaxis: { ...dark.yaxis, range: [0, 100], ticksuffix: '%' }, annotations: adh.length ? [] : [emptyNote('Log rule checklists to populate')] }, cfg);
+      }], {
+        ...dark, hovermode: 'x', hoverlabel: lab,
+        xaxis: adhEmpty ? { visible: false } : { ...dark.xaxis },
+        yaxis: adhEmpty ? { visible: false } : { ...dark.yaxis, range: [0, 100], ticksuffix: '%' },
+        annotations: adhEmpty ? [emptyNote('Tick a trade’s rules checklist to populate adherence.')] : []
+      }, cfg);
     }
     const emptyNote = text => ({ text, xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: { color: cssv('--muted'), size: 12 } });
     let analyticsLoaded = false;

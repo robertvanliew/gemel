@@ -1880,7 +1880,7 @@
         </div>
 
         <div class="panel">
-          <h3>Universe heatmap <span class="muted" style="font-weight:400">— Finviz-style, shaded by RSI momentum</span></h3>
+          <h3>Opportunity map <span class="muted" style="font-weight:400">— each ETF shaded by how many of the six screen gates it clears now · click a tile to chart it</span></h3>
           <div id="etf-heatmap" class="skel" style="height:240px"></div>
         </div>
 
@@ -2868,24 +2868,44 @@
     const mktSel = document.getElementById('mkt-symbol');
     if (mktSel) mktSel.addEventListener('change', () => drawMarketChart(mktSel.value));
 
-    // Finviz-style universe heatmap: one tile per ETF, shaded by RSI momentum
+    // Gemel Opportunity Map: each ETF shaded by how many of the six screen gates
+    // it clears RIGHT NOW (a setup score for THIS playbook) — not just price change.
+    // Better than a generic heatmap: it answers "what's tradeable today", and a
+    // tile click loads that symbol straight into the chart above.
+    const SCAN_GATES = [
+      ['above_20ema', 'above 20-EMA'], ['above_50ema', 'above 50-EMA'], ['rsi_ok', 'RSI 40–70'],
+      ['ivr_ok', 'IV rank ≥ 25'], ['support_ok', 'clear support'], ['event_ok', 'no FOMC / earnings'],
+    ];
     function renderHeatmap(results) {
       const el = document.getElementById('etf-heatmap');
       if (!el || !results || !results.length) return;
-      const labels = results.map(r => r.ticker), rsis = results.map(r => r.rsi);
+      const labels = results.map(r => r.ticker);
+      const score = results.map(r => SCAN_GATES.reduce((n, [k]) => n + (r.passes[k] ? 1 : 0), 0));
+      const text = results.map((r, i) => `${score[i]}/6 gates${r.qualifies ? ' · READY' : ''}<br>IVR ${r.ivr.toFixed(0)} · RSI ${r.rsi.toFixed(0)}`);
+      const hover = results.map(r => SCAN_GATES.map(([k, lab]) => `${r.passes[k] ? '✓' : '✗'} ${lab}`).join('<br>') + '<br><i>click to chart it</i>');
       Plotly.react('etf-heatmap', [{
         type: 'treemap',
         labels, parents: labels.map(() => ''), values: labels.map(() => 1),
         marker: {
-          colors: rsis, colorscale: [[0, cssv('--heat-lo')], [0.5, cssv('--heat-mid')], [1, cssv('--heat-hi')]],
-          cmin: 30, cmid: 50, cmax: 70, line: { color: cssv('--bg'), width: 3 }
+          colors: score, colorscale: [[0, cssv('--heat-lo')], [0.5, cssv('--heat-mid')], [1, cssv('--heat-hi')]],
+          cmin: 0, cmid: 3, cmax: 6, line: { color: cssv('--bg'), width: 3 }
         },
-        text: results.map(r => `RSI ${r.rsi.toFixed(0)} · IVR ${r.ivr.toFixed(0)}<br>${r.qualifies ? 'QUALIFIES' : 'screened out'}`),
-        texttemplate: '<b>%{label}</b><br>%{text}', textposition: 'middle center',
+        text, customdata: hover, texttemplate: '<b>%{label}</b><br>%{text}', textposition: 'middle center',
         textfont: { color: cssv('--ink'), size: 12, family: 'Inter, sans-serif' },
-        hovertemplate: '%{label} — RSI %{color:.0f}<extra></extra>',
+        hovertemplate: '<b>%{label}</b> — setup<br>%{customdata}<extra></extra>',
         tiling: { pad: 3 }
       }], { ...dark, margin: { l: 6, r: 6, t: 6, b: 6 } }, cfg).then(() => el.classList.remove('skel'));
+      if (!window.__heatBound) {
+        window.__heatBound = true;
+        el.on('plotly_click', ev => {
+          const t = ev.points && ev.points[0] && ev.points[0].label;
+          const sel = document.getElementById('mkt-symbol');
+          if (t && sel && [...sel.options].some(o => o.value === t)) {
+            sel.value = t; drawMarketChart(t);
+            document.getElementById('market-spy').scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+      }
     }
 
     let sDrawn = false;
@@ -2998,7 +3018,7 @@
       }
 
       window.__lastScan = d;     // cache for theme re-render
-      renderHeatmap(d.results);  // Finviz-style universe heatmap
+      renderHeatmap(d.results);  // Gemel Opportunity Map
     }
 
     let scanLoaded = false;

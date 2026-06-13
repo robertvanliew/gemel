@@ -1,5 +1,5 @@
 @echo off
-REM Launch Trading Tools locally. Double-click this file.
+REM Launch Gemel locally. Double-click this file.
 cd /d "%~dp0"
 echo Starting Trading Tools at http://localhost:8000  (close this window to stop)
 REM open the browser a couple seconds after the server starts

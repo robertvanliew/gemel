@@ -4,7 +4,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trading Tools — Dashboard Mockup</title>
+  <title>Gemel — strength, established</title>
+  <!-- Gemel mark (pillar glyph) as favicon: solid green short-leg pillar + outlined blue long-leg pillar -->
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='26' y='22' width='26' height='76' rx='4' fill='%230e8a4d'/%3E%3Crect x='68' y='22' width='26' height='76' rx='4' fill='none' stroke='%230b6fff' stroke-width='12'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <style>
     :root {
@@ -875,6 +883,98 @@
     [data-theme="dark"] .step .n.done {
       background: #0f2e16
     }
+
+    /* ===== Gemel branding ===== */
+    .brand {
+      padding-bottom: 6px
+    }
+
+    .brand svg {
+      display: block
+    }
+
+    .brand-tag {
+      font-family: "Newsreader", Georgia, serif;
+      font-style: italic;
+      font-size: 12.5px;
+      color: #8fa3bd;
+      padding: 0 8px 16px;
+      line-height: 1.4
+    }
+
+    [data-theme="dark"] .brand-tag {
+      color: var(--muted)
+    }
+
+    /* page titles in the brand serif */
+    .head h1 {
+      font-family: "Newsreader", Georgia, serif;
+      font-weight: 600;
+      letter-spacing: 0
+    }
+
+    /* nav icons: small line glyphs inherit the link color */
+    .nav .ico svg {
+      width: 17px;
+      height: 17px;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    /* ===== how-to-use help tooltip ===== */
+    .help {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      color: var(--muted);
+      font: 600 11px/1 "JetBrains Mono", monospace;
+      font-style: normal;
+      cursor: help;
+      position: relative;
+      margin-left: 9px;
+      vertical-align: middle
+    }
+
+    .help::before {
+      content: 'i'
+    }
+
+    .help:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .help:hover::after {
+      content: attr(data-help);
+      position: absolute;
+      left: 0;
+      top: 150%;
+      width: 320px;
+      background: #11243f;
+      color: #fff;
+      border: 1px solid #11243f;
+      border-radius: 9px;
+      padding: 11px 13px;
+      font: 400 12.5px/1.55 "Helvetica Neue", Arial, sans-serif;
+      letter-spacing: 0;
+      z-index: 40;
+      box-shadow: 0 10px 30px rgba(12, 31, 63, .28);
+      white-space: normal;
+      text-transform: none
+    }
+
+    .help.r:hover::after {
+      left: auto;
+      right: 0
+    }
   </style>
 </head>
 
@@ -882,15 +982,28 @@
   <div class="app">
     <!-- SIDEBAR -->
     <aside class="side">
-      <div class="brand"><span class="dot"></span> Trading Tools</div>
-      <button class="themetoggle" id="themetoggle">☾ Switch to dark</button>
+      <div class="brand">
+        <svg width="138" height="32" viewBox="0 0 380 86" role="img" aria-label="Gemel">
+          <text x="0" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="#fff">GE</text>
+          <g transform="translate(108,0)">
+            <rect x="2" y="14" width="56" height="6" fill="#fff" />
+            <rect x="8" y="20" width="11" height="42" fill="#0e8a4d" />
+            <rect x="41" y="20" width="11" height="42" fill="none" stroke="#0b6fff" stroke-width="3.5" />
+            <rect x="4" y="58" width="19" height="5" fill="#fff" />
+            <rect x="37" y="58" width="19" height="5" fill="#fff" />
+          </g>
+          <text x="178" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="#fff">EL</text>
+        </svg>
+      </div>
+      <div class="brand-tag">The coach, not the calculator.</div>
+      <button class="themetoggle" id="themetoggle">Switch to dark</button>
       <nav class="nav">
-        <a data-view="positions" class="active"><span class="ico">🎯</span> Positions</a>
-        <a data-view="journal"><span class="ico">📓</span> Journal</a>
-        <a data-view="analytics"><span class="ico">📈</span> Analytics</a>
-        <a data-view="backtester"><span class="ico">🧪</span> Backtester</a>
-        <a data-view="scanner"><span class="ico">🔍</span> Scanner</a>
-        <a data-view="learn"><span class="ico">🎓</span> Learn</a>
+        <a data-view="positions" class="active"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg></span> Positions</a>
+        <a data-view="journal"><span class="ico"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15H8a2 2 0 0 1-2-2z" /><path d="M10 4v16" /></svg></span> Journal</a>
+        <a data-view="analytics"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5v15h16" /><path d="M7 15l4-4 3 2 5-6" /></svg></span> Analytics</a>
+        <a data-view="backtester"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 3h6" /><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg></span> Backtester</a>
+        <a data-view="scanner"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" /></svg></span> Scanner</a>
+        <a data-view="learn"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 4 2 9l10 5 10-5-10-5z" /><path d="M6 11v5c0 1.2 3 3 6 3s6-1.8 6-3v-5" /></svg></span> Learn</a>
       </nav>
       <div class="note">
         <span class="badge-roloff" id="mode-badge">MOCKUP</span><br><br>
@@ -912,7 +1025,7 @@
       <section class="view active" id="positions">
         <div class="head">
           <div>
-            <h1>Positions</h1>
+            <h1>Positions <span class="help" data-help="Your daily 5-minute check. Each open spread shows its payoff at expiration vs its value today (T+0), how much of the profit target you've captured, and the exit triggers you wrote at entry. Drag the IV and days-forward sliders to stress-test a position before the market moves it."></span></h1>
             <div class="sub">The daily 5-minute check. Spreads are managed in the middle, not just opened and closed.</div>
           </div>
           <div class="sub">Paper account: <b>$35,000</b></div>
@@ -922,7 +1035,7 @@
           <div class="card">
             <div class="lbl">Open <span class="term" data-tip="The most you can lose across all open positions if every trade hits max loss at once.">max loss</span></div>
             <div class="val red">$22,148</div>
-            <div class="delta">63% of account ⚠</div>
+            <div class="delta">63% of account — above target</div>
           </div>
           <div class="card">
             <div class="lbl">Per-trade risk cap (2%)</div>
@@ -941,7 +1054,7 @@
           </div>
         </div>
 
-        <div class="banner warn">⚠️ <span>The XLK cash-secured put risks <b>$21,790</b> — 31× the per-trade cap. This is the difference between
+        <div class="banner warn"><span>The XLK cash-secured put risks <b>$21,790</b> — 31× the per-trade cap. This is the difference between
             undefined and defined risk: a $215/$210 <span class="term" data-tip="Sell one put, buy a cheaper put below it. The bought put caps your loss at the width between strikes minus the credit collected.">put credit spread</span> would cap risk near $390 for a similar thesis.</span></div>
 
         <!-- SPY position card -->
@@ -1015,10 +1128,13 @@
       <section class="view" id="journal">
         <div class="head">
           <div>
-            <h1>Journal</h1>
+            <h1>Journal <span class="help" data-help="Log every paper and real trade. Click + Open Trade to add one (or Import CSV from your broker) — the profit-target / stop / time-stop fields are required, by design. Tick the rules you actually followed, then click Close on a position when you exit to record its P&L. Rolled trades link into one campaign so a roll doesn't read as a loss."></span></h1>
             <div class="sub">Log every paper & real trade — honestly.</div>
           </div>
-          <div class="row"><button class="btn ghost">⇪ Import CSV</button><button class="btn">+ Open Trade</button>
+          <div class="row">
+            <input type="file" id="csv-input" accept=".csv" style="display:none">
+            <button class="btn ghost" id="csv-btn">Import CSV</button>
+            <button class="btn" id="open-trade-btn">+ Open Trade</button>
           </div>
         </div>
 
@@ -1196,7 +1312,7 @@
       <section class="view" id="analytics">
         <div class="head">
           <div>
-            <h1>Analytics</h1>
+            <h1>Analytics <span class="help" data-help="Your honest numbers, computed from the journal. Win rate, profit factor, equity curve and rule-adherence update every time you close a trade. The Week-6 scaling gate only turns green when adherence is ≥ 90% AND total P&L is positive — that's your data-driven signal that it's safe to size up."></span></h1>
             <div class="sub">Your real numbers — not your feelings.</div>
           </div>
           <div class="sub">Rolling window: <b>All trades</b></div>
@@ -1241,7 +1357,7 @@
           <div class="gate red" id="an-gate">
             <div class="lampoff"></div>
             <div>
-              <div class="ttl" id="an-gate-ttl">🔴 Not yet — hold size</div>
+              <div class="ttl" id="an-gate-ttl">Not yet — hold size</div>
               <div class="why" id="an-gate-why">Green-lights only when rule adherence ≥ 90% <b>AND</b> net P&amp;L is positive over the
                 window. Currently: adherence 79% (need 90%), P&amp;L positive ✓. Tighten discipline before scaling.
               </div>
@@ -1254,7 +1370,7 @@
       <section class="view" id="backtester">
         <div class="head">
           <div>
-            <h1>Backtester</h1>
+            <h1>Backtester <span class="help" data-help="Test a strategy against years of real history before risking a dollar. Pick a strategy, ticker, short-leg delta and DTE, then Run backtest (it takes a few seconds). Read the regime row — does it only work in bull markets? — and the in-sample vs out-of-sample columns: a big gap there means the strategy is overfit and won't hold up live."></span></h1>
             <div class="sub">Test a strategy against history before risking a dollar.</div>
           </div>
         </div>
@@ -1282,7 +1398,7 @@
                 <option selected>38</option>
                 <option>45</option>
               </select></div>
-            <button class="btn" style="width:100%" id="bt-run">▶ Run backtest</button>
+            <button class="btn" style="width:100%" id="bt-run">Run backtest</button>
             <div class="muted" style="font-size:11px;margin-top:10px">Options priced via Black-Scholes + VIX-family IV
               proxy over ~8 years. Live runs take a few seconds.</div>
           </div>
@@ -1323,21 +1439,21 @@
               </thead>
               <tbody id="bt-regime">
                 <tr>
-                  <td>📈 Trending up</td>
+                  <td>Trending up</td>
                   <td>142</td>
                   <td>89%</td>
                   <td>+$96</td>
                   <td><span style="color:var(--green)">2.41</span></td>
                 </tr>
                 <tr>
-                  <td>🌀 Choppy</td>
+                  <td>Choppy</td>
                   <td>98</td>
                   <td>76%</td>
                   <td>+$41</td>
                   <td><span style="color:var(--green)">1.38</span></td>
                 </tr>
                 <tr>
-                  <td>📉 Declining</td>
+                  <td>Declining</td>
                   <td>53</td>
                   <td>61%</td>
                   <td>−$22</td>
@@ -1348,7 +1464,7 @@
           </div>
           <div class="panel">
             <h3>In-sample vs out-of-sample <span class="muted" style="font-weight:400">— overfitting check</span></h3>
-            <div class="banner warn">⚠️ Out-of-sample is reserved history the strategy was never tuned on. Big gaps =
+            <div class="banner warn">Out-of-sample is reserved history the strategy was never tuned on. Big gaps =
               overfit.</div>
             <table>
               <thead>
@@ -1388,14 +1504,14 @@
       <section class="view" id="scanner">
         <div class="head">
           <div>
-            <h1>Scanner</h1>
+            <h1>Scanner <span class="help r" data-help="The automated Sunday screen. Run now pulls live data and checks every ETF against trend, RSI, IV-rank, support and event-risk. It hands you a shortlist and a suggested spread to review — it never places a trade. If the master gate is red (SPY below its 50-day EMA) the correct move is to stand aside that week."></span></h1>
             <div class="sub">Sunday screen → a shortlist to review. You place every trade by hand.</div>
           </div>
-          <div class="row"><span class="muted" id="scan-lastrun">Last run: Sun May 31, 6:00 PM</span><button class="btn" id="scan-run">↻ Run
+          <div class="row"><span class="muted" id="scan-lastrun">Last run: Sun May 31, 6:00 PM</span><button class="btn" id="scan-run">Run
               now</button></div>
         </div>
 
-        <div class="banner" id="scan-banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
+        <div class="banner" id="scan-banner">Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
           this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
 
         <div class="panel">
@@ -1416,19 +1532,19 @@
             </thead>
             <tbody>
               <tr>
-                <td>📈 Trending up</td>
+                <td>Trending up</td>
                 <td>SPY above 50-EMA</td>
                 <td><span class="term" data-tip="Sell a put, buy a cheaper put below it. Profits if the market stays flat or rises. Defined risk.">Bull put spreads</span></td>
                 <td><span class="pill win">ACTIVE NOW</span></td>
               </tr>
               <tr>
-                <td>📉 Trending down</td>
+                <td>Trending down</td>
                 <td>SPY below 50-EMA</td>
                 <td><span class="term" data-tip="Sell a call, buy a cheaper call above it. The bearish mirror image of a bull put spread. Defined risk.">Bear call spreads</span></td>
                 <td><span class="pill open">PAPER ONLY</span></td>
               </tr>
               <tr>
-                <td>🌀 Choppy / range</td>
+                <td>Choppy / range</td>
                 <td>Price between EMAs, low <span class="term" data-tip="Average Directional Index — a trend-strength gauge. Low readings mean the market is drifting sideways.">ADX</span></td>
                 <td><span class="term" data-tip="A bull put spread and a bear call spread on the same ticker at once. Profits if price stays inside a range. Defined risk on both sides.">Iron condors</span></td>
                 <td><span class="pill loss">LOCKED — 25 live trades first</span></td>
@@ -1522,7 +1638,7 @@
 
         <div class="grid2">
           <div class="topcard">
-            <h3 style="margin-top:0" id="scan-topcard-title">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
+            <h3 style="margin-top:0" id="scan-topcard-title">Top candidate — SPY Bull Put Credit Spread</h3>
             <div class="muted" style="font-size:13px">Best credit-to-risk among qualifiers. Suggested for <b>review</b>,
               not execution.</div>
             <div class="kv" id="scan-kv">
@@ -1582,7 +1698,7 @@
       <section class="view" id="learn">
         <div class="head">
           <div>
-            <h1>Learn</h1>
+            <h1>Learn <span class="help r" data-help="Start here when a term is unfamiliar. The five numbers to check before any spread, your first-90-days ramp, and a filterable glossary of every term used in the app. Anywhere you see a dotted word, hovering it shows a quick definition that ties back to these entries."></span></h1>
             <div class="sub">Every dotted term across the app links back here. Educational only — not financial advice.</div>
           </div>
         </div>
@@ -2353,7 +2469,7 @@
     // ===== theme switching — charts re-render from the new CSS variables
     function setTheme(t) {
       document.documentElement.dataset.theme = t;
-      document.getElementById('themetoggle').textContent = t === 'light' ? '☾ Switch to dark' : '☀ Switch to light';
+      document.getElementById('themetoggle').textContent = t === 'light' ? 'Switch to dark' : 'Switch to light';
       dark = plotTheme();
       pDrawn = aDrawn = bDrawn = sDrawn = false;
       const v = document.querySelector('.view.active').id;
@@ -2376,7 +2492,7 @@
         const bar = document.getElementById('livebar'), dot = document.getElementById('livebar-dot'), txt = document.getElementById('livebar-text');
         if (bar) { bar.style.background = '#e2f3e9'; bar.style.borderColor = '#bfe5cd'; bar.style.color = 'var(--green)'; }
         if (dot) dot.style.background = 'var(--green)';
-        if (txt) txt.innerHTML = `<b>● LIVE</b> — connected to your local engine via <b>${s.source}</b> · SPY <b>${fmtUSD(s.spy_spot)}</b> as of <b>${s.asof}</b> · read-only, you place every trade.`;
+        if (txt) txt.innerHTML = `<b>LIVE</b> — connected to your local engine via <b>${s.source}</b> · SPY <b>${fmtUSD(s.spy_spot)}</b> as of <b>${s.asof}</b> · read-only, you place every trade.`;
       }).catch(() => { });
     }
     loadStatus();
@@ -2399,7 +2515,7 @@
       if (banner) {
         const open = d.master_gate_pass;
         const col = open ? 'var(--green)' : 'var(--red)';
-        banner.innerHTML = `🧭 Master gate: SPY is <b style="color:${col}">${open ? 'above' : 'below'}</b> its 50-day EMA `
+        banner.innerHTML = `Master gate: SPY is <b style="color:${col}">${open ? 'above' : 'below'}</b> its 50-day EMA `
           + `· regime <b>${d.regime.replace('_', ' ')}</b> · playbook: <b style="color:${col}">${d.playbook}</b>.`;
       }
 
@@ -2430,7 +2546,7 @@
       const kv = document.getElementById('scan-kv');
       if (qualifiers.length && qualifiers[0].candidate) {
         const r = qualifiers[0], c = r.candidate;
-        if (title) title.textContent = `🏆 Top candidate — ${r.ticker} Bull Put Credit Spread`;
+        if (title) title.textContent = `Top candidate — ${r.ticker} Bull Put Credit Spread`;
         if (kv) kv.innerHTML = [
           ['Sell put', `$${c.short_strike} (Δ${Math.abs(c.short_delta).toFixed(2)})`],
           ['Buy put', `$${c.long_strike}`],
@@ -2443,7 +2559,7 @@
           ['IV rank', `${c.ivr.toFixed(0)}`],
         ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
       } else {
-        if (title) title.textContent = '🛑 No qualifying candidates this week';
+        if (title) title.textContent = 'No qualifying candidates this week';
         if (kv) kv.innerHTML = '<div style="grid-column:1/-1" class="softtext">Every ETF was screened out by the gates above — '
           + 'most often an upcoming FOMC/earnings event inside the expiry window. Standing aside is the correct move; '
           + 'no trade is a position.</div>';
@@ -2462,7 +2578,7 @@
     document.querySelectorAll('.nav a[data-view="scanner"]').forEach(a =>
       a.addEventListener('click', () => loadScan(false)));
     const runBtn = document.getElementById('scan-run');
-    if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = '↻ Running…'; loadScan(true); setTimeout(() => runBtn.textContent = '↻ Run now', 1500); });
+    if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = 'Running…'; loadScan(true); setTimeout(() => runBtn.textContent = 'Run now', 1500); });
     loadScan(false);  // attempt on load (no-ops under file://)
 
     // ---- Journal (live) ----
@@ -2530,7 +2646,7 @@
       fetch('/api/journal/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'save failed'); return r.json(); })
         .then(() => { if (msg) { msg.textContent = '✓ Saved — logged to your journal.'; msg.style.color = 'var(--green)'; } loadJournal(true); })
-        .catch(e => { if (msg) { msg.textContent = '⚠ ' + e.message; msg.style.color = 'var(--red)'; } });
+        .catch(e => { if (msg) { msg.textContent = '' + e.message; msg.style.color = 'var(--red)'; } });
     });
 
     // close a trade inline: Close -> P&L + reason inputs in the row -> POST -> refresh journal + analytics
@@ -2554,11 +2670,11 @@
         const pnl = parseFloat(document.getElementById(`cl-pnl-${id}`).value);
         const reason = document.getElementById(`cl-reason-${id}`).value;
         const m = document.getElementById(`cl-msg-${id}`);
-        if (isNaN(pnl)) { m.textContent = '⚠ enter a P&L number'; m.style.color = 'var(--red)'; return; }
+        if (isNaN(pnl)) { m.textContent = 'enter a P&L number'; m.style.color = 'var(--red)'; return; }
         fetch(`/api/journal/${id}/close`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exit_price: 0, exit_reason: reason, pnl }) })
           .then(r => { if (!r.ok) throw 0; return r.json(); })
           .then(() => { loadJournal(true); loadAnalytics(true); })
-          .catch(() => { m.textContent = '⚠ close failed'; m.style.color = 'var(--red)'; });
+          .catch(() => { m.textContent = 'close failed'; m.style.color = 'var(--red)'; });
       });
     });
 
@@ -2576,6 +2692,58 @@
       }).then(() => loadJournal(true)).catch(() => { });
     });
 
+    // "+ Open Trade" — jump to the open-trade form and focus it
+    const openTradeBtn = document.getElementById('open-trade-btn');
+    if (openTradeBtn) openTradeBtn.addEventListener('click', () => {
+      const form = document.getElementById('jrnl-form');
+      if (!form) return;
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const panel = form.closest('.panel');
+      panel.style.transition = 'box-shadow .3s'; panel.style.boxShadow = '0 0 0 2px var(--accent)';
+      setTimeout(() => panel.style.boxShadow = '', 900);
+      setTimeout(() => form.querySelector('input[name="ticker"]').focus(), 350);
+    });
+
+    // "Import CSV" — tolerant client-side import; maps common headers, posts each row.
+    // Missing exit-plan fields default to a placeholder so the row saves for later review.
+    const csvBtn = document.getElementById('csv-btn'), csvInput = document.getElementById('csv-input');
+    if (csvBtn && csvInput) {
+      csvBtn.addEventListener('click', () => csvInput.click());
+      csvInput.addEventListener('change', async () => {
+        const file = csvInput.files[0]; if (!file) return;
+        const text = await file.text();
+        const rows = text.trim().split(/\r?\n/).map(r => r.split(','));
+        const headers = rows.shift().map(h => h.trim().toLowerCase());
+        const col = (r, ...names) => { for (const n of names) { const i = headers.indexOf(n); if (i >= 0 && r[i] != null && r[i].trim() !== '') return r[i].trim(); } return null; };
+        const STRAT = { 'bull put credit spread': 'bull_put_spread', 'bull put spread': 'bull_put_spread', 'cash-secured put': 'cash_secured_put', 'cash secured put': 'cash_secured_put', 'csp': 'cash_secured_put' };
+        let ok = 0, fail = 0;
+        for (const r of rows) {
+          if (r.length < 2) continue;
+          const rawStrat = (col(r, 'strategy') || 'bull_put_spread').toLowerCase();
+          const body = {
+            ticker: col(r, 'ticker', 'symbol') || 'UNKNOWN',
+            strategy: STRAT[rawStrat] || (['bull_put_spread', 'cash_secured_put', 'long_option'].includes(rawStrat) ? rawStrat : 'bull_put_spread'),
+            credit_debit: parseFloat(col(r, 'credit', 'credit_debit', 'credit/debit') || '0') || 0,
+            reason_for_entry: col(r, 'reason', 'reason_for_entry', 'notes') || 'imported',
+            profit_target: col(r, 'profit_target', 'profit target', 'target') || 'imported — set on review',
+            stop: col(r, 'stop', 'stop_loss') || 'imported — set on review',
+            time_stop: col(r, 'time_stop', 'time stop') || 'imported — set on review',
+            short_strike: col(r, 'short_strike', 'short strike', 'short') ? parseFloat(col(r, 'short_strike', 'short strike', 'short')) : null,
+            long_strike: col(r, 'long_strike', 'long strike', 'long') ? parseFloat(col(r, 'long_strike', 'long strike', 'long')) : null,
+            delta_at_entry: col(r, 'delta') ? parseFloat(col(r, 'delta')) : null,
+            dte_at_entry: col(r, 'dte') ? parseInt(col(r, 'dte')) : null,
+          };
+          try {
+            const resp = await fetch('/api/journal/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            resp.ok ? ok++ : fail++;
+          } catch { fail++; }
+        }
+        csvInput.value = '';
+        loadJournal(true);
+        alert(`Imported ${ok} trade${ok === 1 ? '' : 's'}${fail ? `, ${fail} skipped` : ''}. Open positions updated — annotate the exit plan + rules on each.`);
+      });
+    }
+
     // ---- Analytics (live) ----
     function renderAnalytics(d) {
       flipLive();
@@ -2591,7 +2759,7 @@
       // gate
       const gate = document.getElementById('an-gate'), ttl = document.getElementById('an-gate-ttl'), why = document.getElementById('an-gate-why');
       if (gate) gate.className = 'gate ' + (d.scaling_gate.green ? 'green' : 'red');
-      if (ttl) ttl.textContent = d.scaling_gate.green ? '🟢 Cleared — scaling allowed' : '🔴 Not yet — hold size';
+      if (ttl) ttl.textContent = d.scaling_gate.green ? 'Cleared — scaling allowed' : 'Not yet — hold size';
       if (why) why.textContent = d.scaling_gate.reason;
       // charts from real series (empty-safe)
       const eq = d.equity_curve, adh = d.adherence_over_time;
@@ -2619,7 +2787,7 @@
     loadAnalytics(false);
 
     // ---- Backtester (live) ----
-    const REGIME_ICON = { trending_up: '📈 Trending up', choppy: '🌀 Choppy', declining: '📉 Declining' };
+    const REGIME_ICON = { trending_up: 'Trending up', choppy: 'Choppy', declining: 'Declining' };
     const pfColor = pf => pf >= 1 ? 'var(--green)' : 'var(--red)';
     const pfTxt = pf => pf >= 999 ? '∞' : pf.toFixed(2);
     function renderBacktest(d) {
@@ -2645,7 +2813,7 @@
       const degrade = is.profit_factor && oos.profit_factor ? (oos.profit_factor / is.profit_factor) : 1;
       const verdict = oos.n_trades === 0 ? '<span class="softtext">Not enough out-of-sample trades yet</span>'
         : degrade >= 0.8 ? '<span style="color:var(--green)">✓ Holds up — modest, expected degradation</span>'
-          : degrade >= 0.5 ? '<span style="color:var(--amber)">⚠ Noticeable degradation out-of-sample</span>'
+          : degrade >= 0.5 ? '<span style="color:var(--amber)">Noticeable degradation out-of-sample</span>'
             : '<span style="color:var(--red)">✗ Large gap — likely overfit</span>';
       const iso = document.getElementById('bt-isoos');
       if (iso) iso.innerHTML = `
@@ -2690,12 +2858,12 @@
         dte: document.getElementById('bt-dte').value,
       });
       const title = document.getElementById('bt-title');
-      btRun.textContent = '▶ Running… (a few seconds)';
+      btRun.textContent = 'Running… (a few seconds)';
       btRun.disabled = true;
       fetch('/api/backtest?' + qs).then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'failed'); return r.json(); })
         .then(d => renderBacktest(d))
-        .catch(e => { if (title) title.textContent = '⚠ ' + e.message; })
-        .finally(() => { btRun.textContent = '▶ Run backtest'; btRun.disabled = false; });
+        .catch(e => { if (title) title.textContent = '' + e.message; })
+        .finally(() => { btRun.textContent = 'Run backtest'; btRun.disabled = false; });
     });
   </script>
 </body>

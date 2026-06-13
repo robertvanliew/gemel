@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gemel</title>
-  <!-- Base-style mark: solid electric-blue logo block -->
+  <!-- Gemel mark (pillar glyph): solid green short-leg pillar + outlined blue long-leg pillar -->
   <link rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230000ff'/%3E%3C/svg%3E">
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='26' y='22' width='26' height='76' rx='4' fill='%230e8a4d'/%3E%3Crect x='68' y='22' width='26' height='76' rx='4' fill='none' stroke='%230b6fff' stroke-width='12'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,500&display=swap"
     rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <script src="https://s3.tradingview.com/tv.js"></script>
@@ -102,14 +102,12 @@
       display: flex;
       align-items: center;
       gap: 11px;
-      padding: 0 2px
+      padding: 0 2px;
+      color: var(--ink)
     }
 
-    .brand .logoblock {
-      width: 30px;
-      height: 30px;
-      background: var(--accent);
-      flex: none
+    .brand svg {
+      display: block
     }
 
     .brand .wordmark {
@@ -999,8 +997,17 @@
     <!-- SIDEBAR -->
     <aside class="side">
       <div class="brand">
-        <span class="logoblock"></span>
-        <span class="wordmark">Gemel</span>
+        <svg width="132" height="30" viewBox="0 0 380 86" role="img" aria-label="Gemel">
+          <text x="0" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="currentColor">GE</text>
+          <g transform="translate(108,0)">
+            <rect x="2" y="14" width="56" height="6" fill="currentColor" />
+            <rect x="8" y="20" width="11" height="42" fill="#0e8a4d" />
+            <rect x="41" y="20" width="11" height="42" fill="none" stroke="#0b6fff" stroke-width="3.5" />
+            <rect x="4" y="58" width="19" height="5" fill="currentColor" />
+            <rect x="37" y="58" width="19" height="5" fill="currentColor" />
+          </g>
+          <text x="178" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="currentColor">EL</text>
+        </svg>
       </div>
       <div class="brand-tag">Disciplined options coaching</div>
       <button class="themetoggle" id="themetoggle">Switch to dark</button>

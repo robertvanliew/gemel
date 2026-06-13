@@ -902,6 +902,12 @@
     <!-- MAIN -->
     <main class="main">
 
+      <div id="livebar"
+        style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:9px;margin-bottom:16px;font-size:13px;background:#fdf6e3;border:1px solid #eedfb2;color:#7a5d10">
+        <span id="livebar-dot" style="width:9px;height:9px;border-radius:50%;background:var(--amber);flex:none"></span>
+        <span id="livebar-text">Sample preview — double-click <b>run.bat</b> (or open <b>localhost:8000</b>) to launch the live app with real market data.</span>
+      </div>
+
       <!-- ===== POSITIONS (new home) ===== -->
       <section class="view active" id="positions">
         <div class="head">
@@ -1256,45 +1262,45 @@
         <div class="grid3">
           <div class="panel" style="grid-column:span 1">
             <h3>Configure run</h3>
-            <div class="field"><label>Strategy</label><select>
-                <option>Bull Put Credit Spread</option>
-                <option>Cash-Secured Put</option>
-                <option>Directional Long Option</option>
+            <div class="field"><label>Strategy</label><select id="bt-strategy">
+                <option value="bull_put_spread">Bull Put Credit Spread</option>
+                <option value="cash_secured_put">Cash-Secured Put</option>
+                <option value="long_option">Directional Long Option</option>
               </select></div>
-            <div class="field"><label>Ticker</label><select>
+            <div class="field"><label>Ticker</label><select id="bt-ticker">
                 <option>SPY</option>
                 <option>QQQ</option>
                 <option>IWM</option>
               </select></div>
-            <div class="field"><label>Short-leg delta</label><select>
+            <div class="field"><label>Short-leg delta</label><select id="bt-delta">
                 <option>0.15</option>
                 <option selected>0.20</option>
                 <option>0.25</option>
               </select></div>
-            <div class="field"><label>DTE</label><select>
+            <div class="field"><label>DTE</label><select id="bt-dte">
                 <option>30</option>
-                <option selected>45</option>
+                <option selected>38</option>
+                <option>45</option>
               </select></div>
-            <div class="field"><label>Date range</label><input value="2015-01-01 → 2026-05-01"></div>
-            <button class="btn" style="width:100%">▶ Run backtest</button>
+            <button class="btn" style="width:100%" id="bt-run">▶ Run backtest</button>
             <div class="muted" style="font-size:11px;margin-top:10px">Options priced via Black-Scholes + VIX-family IV
-              proxy. Models spread cost, slippage & assignment.</div>
+              proxy over ~8 years. Live runs take a few seconds.</div>
           </div>
 
           <div class="panel" style="grid-column:span 2">
-            <h3>Results — Bull Put Spread · SPY · Δ0.20 · 45 DTE</h3>
+            <h3 id="bt-title">Results — Bull Put Spread · SPY · Δ0.20 · 45 DTE</h3>
             <div class="cards" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
               <div class="card">
                 <div class="lbl">Win rate</div>
-                <div class="val green">81%</div>
+                <div class="val green" id="bt-winrate">81%</div>
               </div>
               <div class="card">
                 <div class="lbl">Profit factor</div>
-                <div class="val green">1.74</div>
+                <div class="val green" id="bt-pf">1.74</div>
               </div>
               <div class="card">
                 <div class="lbl">Max drawdown</div>
-                <div class="val red">−14.2%</div>
+                <div class="val red" id="bt-maxdd">−14.2%</div>
               </div>
             </div>
             <div id="btequity" style="height:200px"></div>
@@ -1315,7 +1321,7 @@
                   <th>Profit factor</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="bt-regime">
                 <tr>
                   <td>📈 Trending up</td>
                   <td>142</td>
@@ -1352,7 +1358,7 @@
                   <th>Out-of-sample</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="bt-isoos">
                 <tr>
                   <td>Win rate</td>
                   <td>83%</td>
@@ -2263,6 +2269,7 @@
 
     let bDrawn = false;
     function drawBacktest() {
+      if (window.__liveBacktest) return;  // live results own these charts when connected
       if (bDrawn) return; bDrawn = true;
       // ~8 years of history so the 1M/3M/6M/YTD/1Y/All buttons all have range to work with
       yahooEquityChart('btequity', genDaily('2018-06-01', 2000, 10000, 24, 95), cssv('--accent'), 'Equity');
@@ -2362,6 +2369,17 @@
     // Served from the FastAPI app these fetches populate real data; opened as a
     // plain file:// they fail and the sample data above stays put.
     const fmtUSD = n => '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // LIVE bar — flips amber "sample" to green "live" with the real source + SPY spot
+    function loadStatus() {
+      fetch('/api/status').then(r => { if (!r.ok) throw 0; return r.json(); }).then(s => {
+        const bar = document.getElementById('livebar'), dot = document.getElementById('livebar-dot'), txt = document.getElementById('livebar-text');
+        if (bar) { bar.style.background = '#e2f3e9'; bar.style.borderColor = '#bfe5cd'; bar.style.color = 'var(--green)'; }
+        if (dot) dot.style.background = 'var(--green)';
+        if (txt) txt.innerHTML = `<b>● LIVE</b> — connected to your local engine via <b>${s.source}</b> · SPY <b>${fmtUSD(s.spy_spot)}</b> as of <b>${s.asof}</b> · read-only, you place every trade.`;
+      }).catch(() => { });
+    }
+    loadStatus();
 
     function critCell(pass, label) {
       const mark = pass ? '✓' : '✗';
@@ -2555,6 +2573,86 @@
 
     loadJournal(false);
     loadAnalytics(false);
+
+    // ---- Backtester (live) ----
+    const REGIME_ICON = { trending_up: '📈 Trending up', choppy: '🌀 Choppy', declining: '📉 Declining' };
+    const pfColor = pf => pf >= 1 ? 'var(--green)' : 'var(--red)';
+    const pfTxt = pf => pf >= 999 ? '∞' : pf.toFixed(2);
+    function renderBacktest(d) {
+      flipLive();
+      window.__liveBacktest = true;
+      const stratLabel = { bull_put_spread: 'Bull Put Spread', cash_secured_put: 'Cash-Secured Put', long_option: 'Long Option' }[d.strategy] || d.strategy;
+      const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+      set('bt-title', `Results — ${stratLabel} · ${d.ticker} · Δ${d.params.target_delta} · ${d.params.dte} DTE · ${d.stats.n_trades} trades`);
+      set('bt-winrate', d.stats.win_rate.toFixed(0) + '%');
+      set('bt-pf', pfTxt(d.stats.profit_factor));
+      set('bt-maxdd', fmtUSD(d.stats.max_drawdown));
+
+      // regime table
+      const rt = document.getElementById('bt-regime');
+      if (rt) rt.innerHTML = d.regime.length ? d.regime.map(r => `<tr>
+          <td>${REGIME_ICON[r.regime] || r.regime}</td><td>${r.trades}</td><td>${r.win_rate.toFixed(0)}%</td>
+          <td style="color:${r.avg_pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${r.avg_pnl >= 0 ? '+' : '−'}${fmtUSD(Math.abs(r.avg_pnl))}</td>
+          <td><span style="color:${pfColor(r.profit_factor)}">${pfTxt(r.profit_factor)}</span></td></tr>`).join('')
+        : '<tr><td colspan="5" class="softtext">No trades in this run.</td></tr>';
+
+      // in-sample vs out-of-sample
+      const is = d.in_sample, oos = d.out_of_sample;
+      const degrade = is.profit_factor && oos.profit_factor ? (oos.profit_factor / is.profit_factor) : 1;
+      const verdict = oos.n_trades === 0 ? '<span class="softtext">Not enough out-of-sample trades yet</span>'
+        : degrade >= 0.8 ? '<span style="color:var(--green)">✓ Holds up — modest, expected degradation</span>'
+          : degrade >= 0.5 ? '<span style="color:var(--amber)">⚠ Noticeable degradation out-of-sample</span>'
+            : '<span style="color:var(--red)">✗ Large gap — likely overfit</span>';
+      const iso = document.getElementById('bt-isoos');
+      if (iso) iso.innerHTML = `
+        <tr><td>Trades</td><td>${is.n_trades}</td><td>${oos.n_trades}</td></tr>
+        <tr><td>Win rate</td><td>${is.win_rate.toFixed(0)}%</td><td>${oos.win_rate.toFixed(0)}%</td></tr>
+        <tr><td>Profit factor</td><td>${pfTxt(is.profit_factor)}</td><td>${pfTxt(oos.profit_factor)}</td></tr>
+        <tr><td>Verdict</td><td colspan="2">${verdict}</td></tr>`;
+
+      // equity curve
+      const eq = d.equity_curve;
+      const lab = { bgcolor: cssv('--panel'), bordercolor: cssv('--line'), font: { color: cssv('--ink'), size: 12 } };
+      const oosIdx = eq.findIndex(p => p.date >= d.oos_start);
+      const eqDiv = document.getElementById('btequity');
+      Plotly.purge(eqDiv); eqDiv.innerHTML = '';  // sample chart used a right-axis/rangeselector layout; tear down fully
+      Plotly.newPlot(eqDiv, [{
+        x: eq.map(p => p.date), y: eq.map(p => p.equity), type: 'scatter', mode: 'lines',
+        line: { color: cssv('--accent'), width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(11,111,255,.07)',
+        hovertemplate: '%{x}<br>P&L <b>%{y:$,.0f}</b><extra></extra>'
+      }], {
+        ...dark, hovermode: 'x', hoverlabel: lab, margin: { l: 64, r: 14, t: 10, b: 30 },
+        yaxis: { gridcolor: cssv('--grid'), tickformat: '$,.0f', nticks: 6, side: 'left' },
+        shapes: oosIdx > 0 ? [{ type: 'line', x0: eq[oosIdx].date, x1: eq[oosIdx].date, yref: 'paper', y0: 0, y1: 1, line: { color: cssv('--amber'), width: 1, dash: 'dot' } }] : [],
+        annotations: oosIdx > 0 ? [{ x: eq[oosIdx].date, yref: 'paper', y: 1, text: 'out-of-sample →', showarrow: false, xanchor: 'left', font: { color: cssv('--amber'), size: 10 } }] : (eq.length ? [] : [emptyNote('No trades')]),
+      }, cfg);
+
+      // sensitivity heatmap
+      const sg = d.sensitivity;
+      Plotly.purge('heatmap');
+      Plotly.newPlot('heatmap', [{
+        z: sg.pf, x: sg.delta.map(x => 'Δ' + x), y: sg.dte.map(x => x + ' DTE'), type: 'heatmap', zmid: 1,
+        colorscale: [[0, cssv('--heat-lo')], [0.5, cssv('--heat-mid')], [1, cssv('--heat-hi')]], showscale: true,
+        text: sg.pf.map(row => row.map(pfTxt)), texttemplate: '%{text}', textfont: { color: cssv('--ink') },
+        hovertemplate: '%{x} · %{y}<br>PF %{z:.2f}<extra></extra>'
+      }], { ...dark, margin: { l: 60, r: 14, t: 10, b: 30 } }, cfg);
+    }
+    const btRun = document.getElementById('bt-run');
+    if (btRun) btRun.addEventListener('click', () => {
+      const qs = new URLSearchParams({
+        ticker: document.getElementById('bt-ticker').value,
+        strategy: document.getElementById('bt-strategy').value,
+        delta: document.getElementById('bt-delta').value,
+        dte: document.getElementById('bt-dte').value,
+      });
+      const title = document.getElementById('bt-title');
+      btRun.textContent = '▶ Running… (a few seconds)';
+      btRun.disabled = true;
+      fetch('/api/backtest?' + qs).then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'failed'); return r.json(); })
+        .then(d => renderBacktest(d))
+        .catch(e => { if (title) title.textContent = '⚠ ' + e.message; })
+        .finally(() => { btRun.textContent = '▶ Run backtest'; btRun.disabled = false; });
+    });
   </script>
 </body>
 

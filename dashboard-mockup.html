@@ -893,7 +893,7 @@
         <a data-view="learn"><span class="ico">🎓</span> Learn</a>
       </nav>
       <div class="note">
-        <span class="badge-roloff">MOCKUP</span><br><br>
+        <span class="badge-roloff" id="mode-badge">MOCKUP</span><br><br>
         Static visual prototype with sample data. No live data, no backend, no trades placed.<br><br>
         Read-only by design — the human stays in the execution loop.
       </div>
@@ -1375,11 +1375,11 @@
             <h1>Scanner</h1>
             <div class="sub">Sunday screen → a shortlist to review. You place every trade by hand.</div>
           </div>
-          <div class="row"><span class="muted">Last run: Sun May 31, 6:00 PM</span><button class="btn">↻ Run
+          <div class="row"><span class="muted" id="scan-lastrun">Last run: Sun May 31, 6:00 PM</span><button class="btn" id="scan-run">↻ Run
               now</button></div>
         </div>
 
-        <div class="banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
+        <div class="banner" id="scan-banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
           this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
 
         <div class="panel">
@@ -1439,7 +1439,7 @@
                 <th>Result</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="scan-tbody">
               <tr>
                 <td><b>SPY</b></td>
                 <td class="crit tick">✓</td>
@@ -1506,10 +1506,10 @@
 
         <div class="grid2">
           <div class="topcard">
-            <h3 style="margin-top:0">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
+            <h3 style="margin-top:0" id="scan-topcard-title">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
             <div class="muted" style="font-size:13px">Best credit-to-risk among qualifiers. Suggested for <b>review</b>,
               not execution.</div>
-            <div class="kv">
+            <div class="kv" id="scan-kv">
               <div>
                 <div class="k">Sell put</div>
                 <div class="v">$575 (Δ0.19)</div>
@@ -2346,6 +2346,95 @@
     }
     document.getElementById('themetoggle').addEventListener('click', () =>
       setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+
+    // ===== live data wiring =====
+    // Served from the FastAPI app these fetches populate real data; opened as a
+    // plain file:// they fail and the sample data above stays put.
+    const fmtUSD = n => '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function critCell(pass, label) {
+      const mark = pass ? '✓' : '✗';
+      const extra = label != null ? ` <span class="muted">${label}</span>` : '';
+      return `<td class="crit ${pass ? 'tick' : 'cross'}">${mark}${extra}</td>`;
+    }
+
+    function renderScan(d) {
+      // mode badge -> LIVE
+      const badge = document.getElementById('mode-badge');
+      if (badge) { badge.textContent = 'LIVE'; badge.style.background = '#e2f3e9'; badge.style.borderColor = '#bfe5cd'; badge.style.color = 'var(--green)'; }
+      const lr = document.getElementById('scan-lastrun');
+      if (lr) lr.textContent = `Last run: ${d.ran_at} (live)`;
+
+      // master-gate banner
+      const banner = document.getElementById('scan-banner');
+      if (banner) {
+        const open = d.master_gate_pass;
+        const col = open ? 'var(--green)' : 'var(--red)';
+        banner.innerHTML = `🧭 Master gate: SPY is <b style="color:${col}">${open ? 'above' : 'below'}</b> its 50-day EMA `
+          + `· regime <b>${d.regime.replace('_', ' ')}</b> · playbook: <b style="color:${col}">${d.playbook}</b>.`;
+      }
+
+      // ETF screen rows
+      const tb = document.getElementById('scan-tbody');
+      if (tb) {
+        tb.innerHTML = d.results.map(r => {
+          const p = r.passes;
+          const result = r.qualifies
+            ? '<span class="pill win">QUALIFIES</span>'
+            : '<span class="pill loss">FAIL</span>';
+          return `<tr>
+            <td><b>${r.ticker}</b></td>
+            ${critCell(p.above_20ema)}
+            ${critCell(p.above_50ema)}
+            ${critCell(p.rsi_ok, r.rsi.toFixed(0))}
+            ${critCell(p.ivr_ok, r.ivr.toFixed(0))}
+            ${critCell(p.support_ok)}
+            ${critCell(p.event_ok, p.event_ok ? 'clear' : 'event')}
+            <td>${result}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // top candidate
+      const qualifiers = d.results.filter(r => r.qualifies).sort((a, b) => a.rank - b.rank);
+      const title = document.getElementById('scan-topcard-title');
+      const kv = document.getElementById('scan-kv');
+      if (qualifiers.length && qualifiers[0].candidate) {
+        const r = qualifiers[0], c = r.candidate;
+        if (title) title.textContent = `🏆 Top candidate — ${r.ticker} Bull Put Credit Spread`;
+        if (kv) kv.innerHTML = [
+          ['Sell put', `$${c.short_strike} (Δ${Math.abs(c.short_delta).toFixed(2)})`],
+          ['Buy put', `$${c.long_strike}`],
+          ['Net credit', `<span style="color:var(--green)">${fmtUSD(c.credit)}</span>`],
+          ['Max loss', `<span style="color:var(--red)">${fmtUSD(c.max_loss)}</span>`],
+          ['Break-even', fmtUSD(c.break_even)],
+          ['Profit target', `50% (${fmtUSD(c.profit_target)})`],
+          ['Stop', `2× credit (${fmtUSD(c.stop)})`],
+          ['DTE', `${c.dte}`],
+          ['IV rank', `${c.ivr.toFixed(0)}`],
+        ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+      } else {
+        if (title) title.textContent = '🛑 No qualifying candidates this week';
+        if (kv) kv.innerHTML = '<div style="grid-column:1/-1" class="softtext">Every ETF was screened out by the gates above — '
+          + 'most often an upcoming FOMC/earnings event inside the expiry window. Standing aside is the correct move; '
+          + 'no trade is a position.</div>';
+      }
+    }
+
+    let scanLoaded = false;
+    function loadScan(force) {
+      if (scanLoaded && !force) return;
+      fetch('/api/scan')
+        .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
+        .then(d => { scanLoaded = true; renderScan(d); })
+        .catch(() => { /* file:// or server down — keep the sample data */ });
+    }
+
+    document.querySelectorAll('.nav a[data-view="scanner"]').forEach(a =>
+      a.addEventListener('click', () => loadScan(false)));
+    const runBtn = document.getElementById('scan-run');
+    if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = '↻ Running…'; loadScan(true); setTimeout(() => runBtn.textContent = '↻ Run now', 1500); });
+    loadScan(false);  // attempt on load (no-ops under file://)
   </script>
 </body>
 

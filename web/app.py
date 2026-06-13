@@ -69,6 +69,24 @@ def market() -> JSONResponse:
     return JSONResponse(compute_breadth(make_adapter()))
 
 
+@app.get("/api/ohlc")
+def ohlc(ticker: str = "SPY", days: int = 180) -> JSONResponse:
+    """Real daily OHLCV for the Gemel-native charts (scanner candles + Today
+    index sparklines). Read-only market data."""
+    try:
+        bars = make_adapter().get_daily_bars(ticker.upper(), lookback_days=days)
+    except (ValueError, RuntimeError) as ex:
+        raise HTTPException(status_code=422, detail=str(ex))
+    r2 = lambda s: [round(float(x), 2) for x in s]
+    return JSONResponse({
+        "ticker": ticker.upper(),
+        "dates": [d.date().isoformat() for d in bars.index],
+        "open": r2(bars["open"]), "high": r2(bars["high"]),
+        "low": r2(bars["low"]), "close": r2(bars["close"]),
+        "volume": [float(x) for x in bars["volume"]],
+    })
+
+
 # ---------- scanner ----------
 @app.get("/api/scan")
 def scan() -> JSONResponse:

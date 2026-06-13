@@ -2476,11 +2476,12 @@
     function renderJournal(d) {
       flipLive();
       const openTb = document.getElementById('jrnl-open');
-      if (openTb) openTb.innerHTML = d.open.length ? d.open.map(t => `<tr>
+      if (openTb) openTb.innerHTML = d.open.length ? d.open.map(t => `<tr data-trade="${t.id}">
           <td><b>${t.ticker}</b></td><td>${STRAT_LABEL[t.strategy] || t.strategy}</td>
           <td>${(t.opened_at || '').slice(0, 10)}</td><td>${fmtUSD(t.credit_debit)}</td>
           <td>${t.delta_at_entry ?? '—'}</td><td>${t.dte_at_entry ?? '—'}</td>
-          <td>${t.reason_for_entry || ''}</td><td><span class="pill open">OPEN</span></td></tr>`).join('')
+          <td>${t.reason_for_entry || ''}</td>
+          <td><span class="pill open">OPEN</span> <button class="btn ghost" style="padding:2px 8px;font-size:11px" data-close="${t.id}">Close</button></td></tr>`).join('')
         : '<tr><td colspan="8" class="softtext">No open positions — log one in the “Open trade” panel below.</td></tr>';
       const closedTb = document.getElementById('jrnl-closed');
       if (closedTb) closedTb.innerHTML = d.closed.length ? d.closed.map(t => {
@@ -2530,6 +2531,49 @@
         .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'save failed'); return r.json(); })
         .then(() => { if (msg) { msg.textContent = '✓ Saved — logged to your journal.'; msg.style.color = 'var(--green)'; } loadJournal(true); })
         .catch(e => { if (msg) { msg.textContent = '⚠ ' + e.message; msg.style.color = 'var(--red)'; } });
+    });
+
+    // close a trade inline: Close -> P&L + reason inputs in the row -> POST -> refresh journal + analytics
+    const openTbody = document.getElementById('jrnl-open');
+    if (openTbody) openTbody.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-close]');
+      if (!btn) return;
+      const id = btn.dataset.close, row = btn.closest('tr');
+      row.innerHTML = `<td colspan="8">
+        <div class="row" style="gap:8px">
+          <b>Close trade #${id}</b>
+          <input id="cl-pnl-${id}" type="number" step="0.01" placeholder="realized P&L $" style="width:140px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px">
+          <select id="cl-reason-${id}" style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px">
+            <option value="profit_target">profit target</option><option value="stop">stop</option>
+            <option value="time_stop">time stop</option><option value="expiry">expiry</option><option value="manual">manual</option>
+          </select>
+          <button class="btn" data-confirm="${id}">Save close</button>
+          <span class="muted" style="font-size:12px" id="cl-msg-${id}">Enter the realized dollar P&L for this position.</span>
+        </div></td>`;
+      row.querySelector('[data-confirm]').addEventListener('click', () => {
+        const pnl = parseFloat(document.getElementById(`cl-pnl-${id}`).value);
+        const reason = document.getElementById(`cl-reason-${id}`).value;
+        const m = document.getElementById(`cl-msg-${id}`);
+        if (isNaN(pnl)) { m.textContent = '⚠ enter a P&L number'; m.style.color = 'var(--red)'; return; }
+        fetch(`/api/journal/${id}/close`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ exit_price: 0, exit_reason: reason, pnl }) })
+          .then(r => { if (!r.ok) throw 0; return r.json(); })
+          .then(() => { loadJournal(true); loadAnalytics(true); })
+          .catch(() => { m.textContent = '⚠ close failed'; m.style.color = 'var(--red)'; });
+      });
+    });
+
+    // rules checklist Save -> applies the 6 checks to the most-recently opened trade
+    const rulesPanel = [...document.querySelectorAll('#journal .panel h3')].find(h => h.textContent.includes('Rules-followed'));
+    const rulesSaveBtn = rulesPanel ? rulesPanel.closest('.panel').querySelector('.btn') : null;
+    if (rulesSaveBtn) rulesSaveBtn.addEventListener('click', () => {
+      const panel = rulesSaveBtn.closest('.panel');
+      const checks = [...panel.querySelectorAll('.check')];
+      const rules = checks.map(c => ({ rule_key: c.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40), rule_label: c.textContent.trim(), followed: c.querySelector('input').checked }));
+      fetch('/api/journal/trades').then(r => r.json()).then(d => {
+        if (!d.open.length) return;
+        const id = d.open[0].id;
+        return fetch(`/api/journal/${id}/rules`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules) });
+      }).then(() => loadJournal(true)).catch(() => { });
     });
 
     // ---- Analytics (live) ----

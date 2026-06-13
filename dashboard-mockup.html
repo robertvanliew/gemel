@@ -893,8 +893,8 @@
         <a data-view="learn"><span class="ico">🎓</span> Learn</a>
       </nav>
       <div class="note">
-        <span class="badge-roloff">MOCKUP</span><br><br>
-        Static visual prototype with sample data. No live data, no backend, no trades placed.<br><br>
+        <span class="badge-roloff" id="mode-badge">MOCKUP</span><br><br>
+        <span id="mode-note">Static visual prototype with sample data. No live data, no backend, no trades placed.</span><br><br>
         Read-only by design — the human stays in the execution loop.
       </div>
     </aside>
@@ -1031,7 +1031,7 @@
                 <th>Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="jrnl-open">
               <tr>
                 <td><b>SPY</b></td>
                 <td>Bull Put Credit Spread</td>
@@ -1069,7 +1069,7 @@
                   <th>Result</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="jrnl-closed">
                 <tr>
                   <td>QQQ</td>
                   <td>Bull Put Spread</td>
@@ -1136,7 +1136,7 @@
                   <th>Note</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="jrnl-campaigns">
                 <tr class="campaign">
                   <td colspan="2">QQQ bull put campaign · Apr 14 – May 23</td>
                   <td style="color:var(--green)">+$64 net</td>
@@ -1162,16 +1162,26 @@
 
           <div class="panel">
             <h3>Open trade <span class="muted" style="font-weight:400">— exit plan is required, not optional</span></h3>
-            <div class="grid2" style="gap:12px">
-              <div class="field"><label>Ticker / strategy</label><input value="SPY · Bull Put Spread"></div>
-              <div class="field"><label>Strikes / credit</label><input value="575 / 570 · $1.42"></div>
-              <div class="field locked"><label>Profit target <span class="req">*</span></label><input value="Buy back at 50% ($0.71)"></div>
-              <div class="field locked"><label>Stop <span class="req">*</span></label><input value="2× credit ($2.84)"></div>
-              <div class="field locked"><label>Time stop <span class="req">*</span></label><input value="Close or roll at 21 DTE"></div>
-              <div class="field"><label>Reason for entry</label><input value="Above 20/50 EMA, RSI 58, support hold"></div>
-            </div>
-            <div class="row"><button class="btn">Save trade</button><span class="muted" style="font-size:12px">Won't save
-                without all three exit fields — the plan is written when you're calm, not when the trade is moving.</span></div>
+            <form id="jrnl-form">
+              <div class="grid2" style="gap:12px">
+                <div class="field"><label>Ticker</label><input name="ticker" value="SPY" required></div>
+                <div class="field"><label>Strategy</label><select name="strategy">
+                    <option value="bull_put_spread">Bull Put Credit Spread</option>
+                    <option value="cash_secured_put">Cash-Secured Put</option>
+                    <option value="long_option">Directional Long Option</option>
+                  </select></div>
+                <div class="field"><label>Short strike</label><input name="short_strike" type="number" step="0.5" value="575"></div>
+                <div class="field"><label>Long strike</label><input name="long_strike" type="number" step="0.5" value="570"></div>
+                <div class="field"><label>Credit ($/share)</label><input name="credit_debit" type="number" step="0.01" value="1.42" required></div>
+                <div class="field"><label>Short-leg Δ / DTE</label><input name="delta_dte" value="0.18 / 38"></div>
+                <div class="field locked"><label>Profit target <span class="req">*</span></label><input name="profit_target" value="Buy back at 50%" required></div>
+                <div class="field locked"><label>Stop <span class="req">*</span></label><input name="stop" value="2× credit" required></div>
+                <div class="field locked"><label>Time stop <span class="req">*</span></label><input name="time_stop" value="Close or roll at 21 DTE" required></div>
+                <div class="field"><label>Reason for entry</label><input name="reason_for_entry" value="Above 20/50 EMA, RSI 58, support hold" required></div>
+              </div>
+              <div class="row"><button class="btn" type="submit" id="jrnl-save">Save trade</button><span class="muted" style="font-size:12px" id="jrnl-msg">Won't save
+                  without all three exit fields — the plan is written when you're calm, not when the trade is moving.</span></div>
+            </form>
           </div>
         </div>
       </section>
@@ -1189,23 +1199,23 @@
         <div class="cards">
           <div class="card">
             <div class="lbl">Win rate</div>
-            <div class="val green">68%</div>
-            <div class="delta">last 20 trades</div>
+            <div class="val green" id="an-winrate">68%</div>
+            <div class="delta" id="an-ntrades">last 20 trades</div>
           </div>
           <div class="card">
             <div class="lbl">Avg win / avg loss</div>
-            <div class="val">$121 / $135</div>
-            <div class="delta">ratio 0.90</div>
+            <div class="val" id="an-avgwl">$121 / $135</div>
+            <div class="delta" id="an-ratio">ratio 0.90</div>
           </div>
           <div class="card">
             <div class="lbl">Profit factor</div>
-            <div class="val green">1.92</div>
+            <div class="val green" id="an-pf">1.92</div>
             <div class="delta">&gt;1 = net positive</div>
           </div>
           <div class="card">
             <div class="lbl">Rule adherence</div>
-            <div class="val">79%</div>
-            <div class="delta">trending up ↑</div>
+            <div class="val" id="an-adherence">79%</div>
+            <div class="delta" id="an-maxdd">trending up ↑</div>
           </div>
         </div>
 
@@ -1222,11 +1232,11 @@
 
         <div class="panel">
           <h3>Week-6 scaling gate</h3>
-          <div class="gate red">
+          <div class="gate red" id="an-gate">
             <div class="lampoff"></div>
             <div>
-              <div class="ttl">🔴 Not yet — hold size</div>
-              <div class="why">Green-lights only when rule adherence ≥ 90% <b>AND</b> net P&amp;L is positive over the
+              <div class="ttl" id="an-gate-ttl">🔴 Not yet — hold size</div>
+              <div class="why" id="an-gate-why">Green-lights only when rule adherence ≥ 90% <b>AND</b> net P&amp;L is positive over the
                 window. Currently: adherence 79% (need 90%), P&amp;L positive ✓. Tighten discipline before scaling.
               </div>
             </div>
@@ -1375,11 +1385,11 @@
             <h1>Scanner</h1>
             <div class="sub">Sunday screen → a shortlist to review. You place every trade by hand.</div>
           </div>
-          <div class="row"><span class="muted">Last run: Sun May 31, 6:00 PM</span><button class="btn">↻ Run
+          <div class="row"><span class="muted" id="scan-lastrun">Last run: Sun May 31, 6:00 PM</span><button class="btn" id="scan-run">↻ Run
               now</button></div>
         </div>
 
-        <div class="banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
+        <div class="banner" id="scan-banner">🧭 Master gate: SPY is <b style="color:var(--green)">above</b> its 50-day EMA — playbook for
           this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
 
         <div class="panel">
@@ -1439,7 +1449,7 @@
                 <th>Result</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="scan-tbody">
               <tr>
                 <td><b>SPY</b></td>
                 <td class="crit tick">✓</td>
@@ -1506,10 +1516,10 @@
 
         <div class="grid2">
           <div class="topcard">
-            <h3 style="margin-top:0">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
+            <h3 style="margin-top:0" id="scan-topcard-title">🏆 Top candidate — SPY Bull Put Credit Spread</h3>
             <div class="muted" style="font-size:13px">Best credit-to-risk among qualifiers. Suggested for <b>review</b>,
               not execution.</div>
-            <div class="kv">
+            <div class="kv" id="scan-kv">
               <div>
                 <div class="k">Sell put</div>
                 <div class="v">$575 (Δ0.19)</div>
@@ -2233,6 +2243,7 @@
 
     let aDrawn = false;
     function drawAnalytics() {
+      if (window.__liveAnalytics) return;  // live data owns these charts when connected
       if (aDrawn) return; aDrawn = true;
       yahooEquityChart('equity', genDaily('2025-09-02', 195, 34000, 93, 130), cssv('--green'), 'Equity');
       // rule-adherence keeps a simple line, now with crosshair + hover box
@@ -2346,6 +2357,204 @@
     }
     document.getElementById('themetoggle').addEventListener('click', () =>
       setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+
+    // ===== live data wiring =====
+    // Served from the FastAPI app these fetches populate real data; opened as a
+    // plain file:// they fail and the sample data above stays put.
+    const fmtUSD = n => '$' + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function critCell(pass, label) {
+      const mark = pass ? '✓' : '✗';
+      const extra = label != null ? ` <span class="muted">${label}</span>` : '';
+      return `<td class="crit ${pass ? 'tick' : 'cross'}">${mark}${extra}</td>`;
+    }
+
+    function renderScan(d) {
+      // mode badge -> LIVE
+      const badge = document.getElementById('mode-badge');
+      if (badge) { badge.textContent = 'LIVE'; badge.style.background = '#e2f3e9'; badge.style.borderColor = '#bfe5cd'; badge.style.color = 'var(--green)'; }
+      const lr = document.getElementById('scan-lastrun');
+      if (lr) lr.textContent = `Last run: ${d.ran_at} (live)`;
+
+      // master-gate banner
+      const banner = document.getElementById('scan-banner');
+      if (banner) {
+        const open = d.master_gate_pass;
+        const col = open ? 'var(--green)' : 'var(--red)';
+        banner.innerHTML = `🧭 Master gate: SPY is <b style="color:${col}">${open ? 'above' : 'below'}</b> its 50-day EMA `
+          + `· regime <b>${d.regime.replace('_', ' ')}</b> · playbook: <b style="color:${col}">${d.playbook}</b>.`;
+      }
+
+      // ETF screen rows
+      const tb = document.getElementById('scan-tbody');
+      if (tb) {
+        tb.innerHTML = d.results.map(r => {
+          const p = r.passes;
+          const result = r.qualifies
+            ? '<span class="pill win">QUALIFIES</span>'
+            : '<span class="pill loss">FAIL</span>';
+          return `<tr>
+            <td><b>${r.ticker}</b></td>
+            ${critCell(p.above_20ema)}
+            ${critCell(p.above_50ema)}
+            ${critCell(p.rsi_ok, r.rsi.toFixed(0))}
+            ${critCell(p.ivr_ok, r.ivr.toFixed(0))}
+            ${critCell(p.support_ok)}
+            ${critCell(p.event_ok, p.event_ok ? 'clear' : 'event')}
+            <td>${result}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // top candidate
+      const qualifiers = d.results.filter(r => r.qualifies).sort((a, b) => a.rank - b.rank);
+      const title = document.getElementById('scan-topcard-title');
+      const kv = document.getElementById('scan-kv');
+      if (qualifiers.length && qualifiers[0].candidate) {
+        const r = qualifiers[0], c = r.candidate;
+        if (title) title.textContent = `🏆 Top candidate — ${r.ticker} Bull Put Credit Spread`;
+        if (kv) kv.innerHTML = [
+          ['Sell put', `$${c.short_strike} (Δ${Math.abs(c.short_delta).toFixed(2)})`],
+          ['Buy put', `$${c.long_strike}`],
+          ['Net credit', `<span style="color:var(--green)">${fmtUSD(c.credit)}</span>`],
+          ['Max loss', `<span style="color:var(--red)">${fmtUSD(c.max_loss)}</span>`],
+          ['Break-even', fmtUSD(c.break_even)],
+          ['Profit target', `50% (${fmtUSD(c.profit_target)})`],
+          ['Stop', `2× credit (${fmtUSD(c.stop)})`],
+          ['DTE', `${c.dte}`],
+          ['IV rank', `${c.ivr.toFixed(0)}`],
+        ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+      } else {
+        if (title) title.textContent = '🛑 No qualifying candidates this week';
+        if (kv) kv.innerHTML = '<div style="grid-column:1/-1" class="softtext">Every ETF was screened out by the gates above — '
+          + 'most often an upcoming FOMC/earnings event inside the expiry window. Standing aside is the correct move; '
+          + 'no trade is a position.</div>';
+      }
+    }
+
+    let scanLoaded = false;
+    function loadScan(force) {
+      if (scanLoaded && !force) return;
+      fetch('/api/scan')
+        .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
+        .then(d => { scanLoaded = true; renderScan(d); })
+        .catch(() => { /* file:// or server down — keep the sample data */ });
+    }
+
+    document.querySelectorAll('.nav a[data-view="scanner"]').forEach(a =>
+      a.addEventListener('click', () => loadScan(false)));
+    const runBtn = document.getElementById('scan-run');
+    if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = '↻ Running…'; loadScan(true); setTimeout(() => runBtn.textContent = '↻ Run now', 1500); });
+    loadScan(false);  // attempt on load (no-ops under file://)
+
+    // ---- Journal (live) ----
+    const STRAT_LABEL = { bull_put_spread: 'Bull Put Credit Spread', cash_secured_put: 'Cash-Secured Put', long_option: 'Directional Long Option' };
+    function flipLive() {
+      const badge = document.getElementById('mode-badge');
+      if (badge && badge.textContent !== 'LIVE') { badge.textContent = 'LIVE'; badge.style.background = '#e2f3e9'; badge.style.borderColor = '#bfe5cd'; badge.style.color = 'var(--green)'; }
+      const note = document.getElementById('mode-note');
+      if (note) note.textContent = 'Connected to your local engine — real market data + your journal DB. No orders are ever placed; you trade by hand.';
+    }
+    function renderJournal(d) {
+      flipLive();
+      const openTb = document.getElementById('jrnl-open');
+      if (openTb) openTb.innerHTML = d.open.length ? d.open.map(t => `<tr>
+          <td><b>${t.ticker}</b></td><td>${STRAT_LABEL[t.strategy] || t.strategy}</td>
+          <td>${(t.opened_at || '').slice(0, 10)}</td><td>${fmtUSD(t.credit_debit)}</td>
+          <td>${t.delta_at_entry ?? '—'}</td><td>${t.dte_at_entry ?? '—'}</td>
+          <td>${t.reason_for_entry || ''}</td><td><span class="pill open">OPEN</span></td></tr>`).join('')
+        : '<tr><td colspan="8" class="softtext">No open positions — log one in the “Open trade” panel below.</td></tr>';
+      const closedTb = document.getElementById('jrnl-closed');
+      if (closedTb) closedTb.innerHTML = d.closed.length ? d.closed.map(t => {
+        const win = (t.pnl ?? 0) >= 0;
+        const adh = t.adherence == null ? '—' : `<span class="${adhClass(t.adherence)}">${t.adherence.toFixed(0)}%</span>`;
+        return `<tr><td>${t.ticker}</td><td>${STRAT_LABEL[t.strategy] || t.strategy}</td>
+          <td style="color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : '−'}${fmtUSD(Math.abs(t.pnl ?? 0))}</td>
+          <td>${adh}</td><td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
+      }).join('') : '<tr><td colspan="5" class="softtext">No closed trades yet.</td></tr>';
+      const campTb = document.getElementById('jrnl-campaigns');
+      if (campTb) campTb.innerHTML = d.campaigns.length ? d.campaigns.map(c => {
+        const net = c.net_pnl, win = net >= 0;
+        const head = `<tr class="campaign"><td colspan="2">${c.campaign.ticker} ${STRAT_LABEL[c.campaign.strategy] || c.campaign.strategy} campaign</td>
+          <td style="color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : '−'}${fmtUSD(Math.abs(net))} net</td>
+          <td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
+        const legs = c.legs.map((t, i) => `<tr><td class="chain">└ ${i + 1}</td><td>${t.short_strike ?? ''}/${t.long_strike ?? ''} ${STRAT_LABEL[t.strategy] || ''}</td>
+          <td style="color:${(t.pnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${fmtUSD(t.pnl ?? 0)}</td><td class="chain">${t.exit_reason || 'open'}</td></tr>`).join('');
+        return head + legs;
+      }).join('') : '<tr><td colspan="4" class="softtext">No campaigns yet — campaigns form when you roll a position.</td></tr>';
+    }
+    const adhClass = a => a >= 90 ? 'tick' : (a >= 70 ? '' : 'cross');
+    let journalLoaded = false;
+    function loadJournal(force) {
+      if (journalLoaded && !force) return;
+      fetch('/api/journal/trades').then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(d => { journalLoaded = true; renderJournal(d); }).catch(() => { });
+    }
+    document.querySelectorAll('.nav a[data-view="journal"]').forEach(a => a.addEventListener('click', () => loadJournal(false)));
+
+    const jform = document.getElementById('jrnl-form');
+    if (jform) jform.addEventListener('submit', ev => {
+      ev.preventDefault();
+      const f = new FormData(jform);
+      const [dStr, dteStr] = String(f.get('delta_dte') || '').split('/').map(s => s.trim());
+      const body = {
+        ticker: f.get('ticker'), strategy: f.get('strategy'),
+        credit_debit: parseFloat(f.get('credit_debit')),
+        reason_for_entry: f.get('reason_for_entry'),
+        profit_target: f.get('profit_target'), stop: f.get('stop'), time_stop: f.get('time_stop'),
+        short_strike: f.get('short_strike') ? parseFloat(f.get('short_strike')) : null,
+        long_strike: f.get('long_strike') ? parseFloat(f.get('long_strike')) : null,
+        delta_at_entry: dStr ? parseFloat(dStr) : null,
+        dte_at_entry: dteStr ? parseInt(dteStr) : null,
+      };
+      const msg = document.getElementById('jrnl-msg');
+      fetch('/api/journal/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'save failed'); return r.json(); })
+        .then(() => { if (msg) { msg.textContent = '✓ Saved — logged to your journal.'; msg.style.color = 'var(--green)'; } loadJournal(true); })
+        .catch(e => { if (msg) { msg.textContent = '⚠ ' + e.message; msg.style.color = 'var(--red)'; } });
+    });
+
+    // ---- Analytics (live) ----
+    function renderAnalytics(d) {
+      flipLive();
+      window.__liveAnalytics = true;  // suppress the sample drawAnalytics from here on
+      const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+      set('an-winrate', d.win_rate.toFixed(0) + '%');
+      set('an-ntrades', d.n_trades + ' closed trade' + (d.n_trades === 1 ? '' : 's'));
+      set('an-avgwl', fmtUSD(d.avg_win) + ' / ' + fmtUSD(Math.abs(d.avg_loss)));
+      set('an-ratio', 'ratio ' + (d.avg_loss ? (d.avg_win / Math.abs(d.avg_loss)) : 0).toFixed(2));
+      set('an-pf', d.profit_factor >= 999 ? '∞' : d.profit_factor.toFixed(2));
+      set('an-adherence', d.avg_adherence.toFixed(0) + '%');
+      set('an-maxdd', 'max DD ' + fmtUSD(d.max_drawdown));
+      // gate
+      const gate = document.getElementById('an-gate'), ttl = document.getElementById('an-gate-ttl'), why = document.getElementById('an-gate-why');
+      if (gate) gate.className = 'gate ' + (d.scaling_gate.green ? 'green' : 'red');
+      if (ttl) ttl.textContent = d.scaling_gate.green ? '🟢 Cleared — scaling allowed' : '🔴 Not yet — hold size';
+      if (why) why.textContent = d.scaling_gate.reason;
+      // charts from real series (empty-safe)
+      const eq = d.equity_curve, adh = d.adherence_over_time;
+      const lab = { bgcolor: cssv('--panel'), bordercolor: cssv('--line'), font: { color: cssv('--ink'), size: 12 } };
+      Plotly.react('equity', [{
+        x: eq.map(p => p.date), y: eq.map(p => p.equity), type: 'scatter', mode: 'lines',
+        line: { color: cssv('--green'), width: 2 }, hovertemplate: '%{x}<br>Equity <b>%{y:$,.0f}</b><extra></extra>'
+      }], { ...dark, hovermode: 'x', hoverlabel: lab, yaxis: { ...dark.yaxis, tickprefix: '$' }, annotations: eq.length ? [] : [emptyNote('No closed trades yet')] }, cfg);
+      Plotly.react('adherence', [{
+        x: adh.map(p => p.date), y: adh.map(p => p.adherence), type: 'scatter', mode: 'lines+markers',
+        line: { color: cssv('--accent'), width: 2 }, marker: { size: 5 }, hovertemplate: '%{x}<br>Adherence <b>%{y}%</b><extra></extra>'
+      }], { ...dark, hovermode: 'x', hoverlabel: lab, yaxis: { ...dark.yaxis, range: [0, 100], ticksuffix: '%' }, annotations: adh.length ? [] : [emptyNote('Log rule checklists to populate')] }, cfg);
+    }
+    const emptyNote = text => ({ text, xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: { color: cssv('--muted'), size: 12 } });
+    let analyticsLoaded = false;
+    function loadAnalytics(force) {
+      if (analyticsLoaded && !force) return;
+      fetch('/api/analytics').then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(d => { analyticsLoaded = true; renderAnalytics(d); }).catch(() => { });
+    }
+    // force a re-render on click so the live charts draw at full size in the now-visible panel
+    document.querySelectorAll('.nav a[data-view="analytics"]').forEach(a => a.addEventListener('click', () => loadAnalytics(true)));
+
+    loadJournal(false);
+    loadAnalytics(false);
   </script>
 </body>
 

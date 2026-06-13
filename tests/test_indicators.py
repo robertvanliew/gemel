@@ -41,3 +41,32 @@ def test_rsi_bounded_0_100():
     s = pd.Series([100.0, 99.0, 101.0, 98.0, 102.0, 97.0, 103.0, 100.0] * 5)
     out = rsi(s, 14).dropna()
     assert ((out >= 0) & (out <= 100)).all()
+
+
+import numpy as np
+
+from core.indicators import detect_support
+
+
+def _bars_with_double_bottom() -> pd.DataFrame:
+    # price drifts 110 -> dips to ~100 (bar 10) -> recovers -> dips to ~100.5 (bar 25) -> ends 107
+    lows = np.array(
+        [110, 108, 106, 104, 103, 102, 101.5, 101, 100.5, 100.2,
+         100.0, 100.8, 102, 103.5, 105, 106, 105.5, 104, 103, 102,
+         101.5, 101.2, 100.9, 100.7, 100.6, 100.5, 101.5, 103, 105, 107],
+        dtype=float,
+    )
+    return pd.DataFrame({"low": lows, "close": lows + 0.5})
+
+
+def test_detect_support_finds_double_bottom_level():
+    bars = _bars_with_double_bottom()
+    level = detect_support(bars, lookback=30)
+    assert level is not None
+    assert 99.5 <= level <= 101.0  # the ~100 cluster
+
+
+def test_detect_support_none_when_no_swing_lows():
+    # strictly rising lows -> a single swing low at best, below min_touches
+    bars = pd.DataFrame({"low": np.linspace(100, 130, 30), "close": np.linspace(100.5, 130.5, 30)})
+    assert detect_support(bars, lookback=30) is None

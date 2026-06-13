@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEMEL — Brand Exploration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0c2340;
+      --ink: #0c1f3f;
+      --blue: #0b6fff;
+      --green: #0e8a4d;
+      --paper: #f6f8fb;
+      --card: #ffffff;
+      --line: #dde4ec;
+      --muted: #5a6b80;
+      --serif: "Newsreader", Georgia, serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .sheet { max-width: 980px; margin: 0 auto; padding: 64px 28px 96px }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-size: 78px;
+      font-weight: 500;
+      letter-spacing: .04em;
+      margin: 10px 0 4px;
+      line-height: 1;
+    }
+
+    h1 .m { color: var(--blue) }
+
+    .pron { font-family: var(--mono); font-size: 13px; color: var(--muted) }
+
+    .lede {
+      font-size: 22px;
+      font-style: italic;
+      max-width: 56ch;
+      margin: 26px 0 0;
+      color: #2a3c57;
+    }
+
+    h2 {
+      font-size: 15px;
+      font-family: var(--mono);
+      font-weight: 600;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--navy);
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      margin: 64px 0 18px;
+    }
+
+    p { max-width: 68ch }
+
+    .chain {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: inline-block;
+    }
+
+    .chain b { color: var(--ink) }
+
+    .comps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px }
+
+    .comp {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .comp .stage {
+      background: var(--paper);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 22px 0;
+    }
+
+    .comp.dark .stage { background: var(--navy) }
+
+    .comp h3 { margin: 0; font-size: 19px; font-weight: 600 }
+
+    .comp p { font-size: 14.5px; color: var(--muted); margin: 0 }
+
+    .tagrow { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px }
+
+    .tagline {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 16px;
+    }
+
+    .tagline.lead { border-color: var(--blue); color: var(--blue); font-style: italic }
+
+    .favrow { display: flex; gap: 26px; align-items: flex-end; margin-top: 8px }
+
+    .favrow figure { margin: 0; text-align: center }
+
+    .favrow figcaption { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 8px }
+
+    .runners { display: grid; grid-template-columns: 1fr 1fr; gap: 18px }
+
+    .runner {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px 22px;
+    }
+
+    .runner h3 { margin: 0 0 6px; font-size: 22px }
+
+    .runner p { font-size: 14.5px; color: var(--muted); margin: 0 }
+
+    .note {
+      font-size: 14px;
+      color: var(--muted);
+      border-left: 3px solid var(--line);
+      padding-left: 16px;
+      max-width: 70ch;
+    }
+
+    .wordmark { display: flex; align-items: center; gap: 22px; flex-wrap: wrap }
+
+    @media (max-width: 760px) {
+      h1 { font-size: 54px }
+      .comps { grid-template-columns: 1fr }
+      .runners { grid-template-columns: 1fr }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sheet">
+
+    <div class="eyebrow">Brand exploration · naming + identity · June 2026</div>
+    <h1>GE<span class="m">M</span>EL</h1>
+    <div class="pron">/ˈdʒɛm·əl/ · noun & adjective · "twin, paired" · from Latin gemellus — the same root as Gemini</div>
+
+    <p class="lede">A real English word almost nobody remembers, meaning exactly what this tool is: two of a kind,
+      joined. Gemel rings are two interlocking rings worn as one. Bars gemel are twin parallel lines in heraldry —
+      which is what a vertical spread is on a chart. And the Gemini glyph is two pillars under one lintel.</p>
+
+    <h2>The symbol logic</h2>
+    <div class="chain">Gemini ♊ → two pillars → <b>Boaz</b> ("in him is strength") + <b>Jachin</b> ("he will
+      establish") → the short leg + the long leg → every spread is twin pillars under a defined roof</div>
+    <p style="margin-top:18px">The short leg is the strength — it earns the credit. The long leg establishes the floor
+      — it defines the risk. The pillar that pays and the pillar that protects. The temple porch, the zodiac glyph, and
+      the options math all draw the same picture, so the logo only has to draw it once.</p>
+
+    <h2>Mark — three directions</h2>
+    <div class="comps">
+
+      <div class="comp">
+        <div class="stage">
+          <!-- Direction 1: The Pillar Glyph -->
+          <svg width="150" height="150" viewBox="0 0 120 120" role="img" aria-label="Two pillars forming the Gemini glyph">
+            <!-- lintel: max profit cap -->
+            <path d="M16 18 Q60 8 104 18 L104 26 Q60 16 16 26 Z" fill="#0c2340"/>
+            <!-- base: the defined floor -->
+            <path d="M16 102 Q60 112 104 102 L104 94 Q60 104 16 94 Z" fill="#0c2340"/>
+            <!-- Boaz: the short leg, solid, strength -->
+            <rect x="32" y="30" width="18" height="60" rx="2" fill="#0e8a4d"/>
+            <rect x="28" y="30" width="26" height="6" rx="2" fill="#0c2340"/>
+            <rect x="28" y="84" width="26" height="6" rx="2" fill="#0c2340"/>
+            <!-- Jachin: the long leg, outlined, protection -->
+            <rect x="71" y="30" width="18" height="60" rx="2" fill="none" stroke="#0b6fff" stroke-width="4"/>
+            <rect x="67" y="30" width="26" height="6" rx="2" fill="#0c2340"/>
+            <rect x="67" y="84" width="26" height="6" rx="2" fill="#0c2340"/>
+          </svg>
+        </div>
+        <h3>1 · The Pillar Glyph</h3>
+        <p>Primary mark. The Gemini glyph rebuilt as Jachin &amp; Boaz: solid green pillar = the short leg (strength,
+          the credit); outlined blue pillar = the long leg (establishment, the floor). Lintel above, base below — risk
+          capped on both ends. The logo is a defined-risk spread.</p>
+      </div>
+
+      <div class="comp">
+        <div class="stage">
+          <!-- Direction 2: Candle Pillars -->
+          <svg width="150" height="150" viewBox="0 0 120 120" role="img" aria-label="Two candlesticks as temple pillars">
+            <path d="M18 16 H102 V23 H18 Z" fill="#0c2340"/>
+            <path d="M18 97 H102 V104 H18 Z" fill="#0c2340"/>
+            <!-- green candle pillar -->
+            <line x1="43" y1="23" x2="43" y2="36" stroke="#0e8a4d" stroke-width="3.5"/>
+            <rect x="34" y="36" width="18" height="42" rx="2" fill="#0e8a4d"/>
+            <line x1="43" y1="78" x2="43" y2="97" stroke="#0e8a4d" stroke-width="3.5"/>
+            <!-- outlined candle pillar -->
+            <line x1="77" y1="23" x2="77" y2="42" stroke="#0b6fff" stroke-width="3.5"/>
+            <rect x="68" y="42" width="18" height="42" rx="2" fill="none" stroke="#0b6fff" stroke-width="4"/>
+            <line x1="77" y1="84" x2="77" y2="97" stroke="#0b6fff" stroke-width="3.5"/>
+          </svg>
+        </div>
+        <h3>2 · Candle Pillars</h3>
+        <p>The market-native cousin: the two pillars drawn as candlesticks, wicks meeting the lintel and base. Reads as
+          a chart from across the room and as the temple porch up close. Strongest at large sizes — hero art, splash
+          screens, merch.</p>
+      </div>
+
+      <div class="comp dark">
+        <div class="stage">
+          <!-- Direction 3: Gemel Rings -->
+          <svg width="150" height="150" viewBox="0 0 120 120" role="img" aria-label="Two interlocked gemel rings">
+            <circle cx="47" cy="60" r="24" fill="none" stroke="#ffffff" stroke-width="7"/>
+            <circle cx="73" cy="60" r="24" fill="none" stroke="#0b6fff" stroke-width="7"/>
+            <!-- interlock: re-draw a white arc of ring A over ring B at the lower crossing -->
+            <path d="M 60.7 80.5 A 24 24 0 0 1 47 84" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="butt"/>
+          </svg>
+        </div>
+        <h3>3 · Gemel Rings</h3>
+        <p>The literal gemel: two betrothal rings interlocked — one for each of you, one for each leg. Quietest of the
+          three and the most personal. Works as an app icon and as a story you tell once and nobody forgets.</p>
+      </div>
+    </div>
+
+    <h2>Wordmark</h2>
+    <div class="wordmark">
+      <svg width="380" height="86" viewBox="0 0 380 86" role="img" aria-label="GEMEL wordmark with pillar M">
+        <text x="0" y="62" font-family="Newsreader, Georgia, serif" font-size="64" font-weight="500"
+          letter-spacing="4" fill="#0c1f3f">GE</text>
+        <!-- the M rendered as two pillars under a lintel -->
+        <g transform="translate(108,0)">
+          <rect x="2" y="14" width="56" height="6" fill="#0c2340"/>
+          <rect x="8" y="20" width="11" height="42" fill="#0e8a4d"/>
+          <rect x="41" y="20" width="11" height="42" fill="none" stroke="#0b6fff" stroke-width="3.5"/>
+          <rect x="4" y="58" width="19" height="5" fill="#0c2340"/>
+          <rect x="37" y="58" width="19" height="5" fill="#0c2340"/>
+        </g>
+        <text x="178" y="62" font-family="Newsreader, Georgia, serif" font-size="64" font-weight="500"
+          letter-spacing="4" fill="#0c1f3f">EL</text>
+      </svg>
+    </div>
+    <p style="font-size:14.5px;color:var(--muted)">Newsreader caps with the M replaced by the pillar glyph — the twin
+      verticals of the letter M are the one place in the word where the symbol already lives. Use the full serif
+      wordmark in quiet contexts; deploy the pillar-M version where the brand should announce itself.</p>
+
+    <h2>Voice — taglines</h2>
+    <div class="tagrow">
+      <span class="tagline lead">Strength, established.</span>
+      <span class="tagline">Two pillars. One plan.</span>
+      <span class="tagline">The pillar that pays. The pillar that protects.</span>
+      <span class="tagline">The coach, not the calculator.</span>
+    </div>
+    <p style="font-size:14.5px;color:var(--muted);margin-top:14px">"Strength, established" is the two pillar names
+      translated — Boaz, Jachin — and also the literal mechanics of a credit spread. Lead with it. "The coach, not the
+      calculator" is the positioning line against OptionStrat and the journals; use it where competitors are in the
+      room.</p>
+
+    <h2>Scale check</h2>
+    <div class="favrow">
+      <figure>
+        <svg width="64" height="64" viewBox="0 0 120 120"><path d="M16 18 Q60 8 104 18 L104 26 Q60 16 16 26 Z" fill="#0c2340"/><path d="M16 102 Q60 112 104 102 L104 94 Q60 104 16 94 Z" fill="#0c2340"/><rect x="32" y="30" width="18" height="60" rx="2" fill="#0e8a4d"/><rect x="71" y="30" width="18" height="60" rx="2" fill="none" stroke="#0b6fff" stroke-width="6"/></svg>
+        <figcaption>64px</figcaption>
+      </figure>
+      <figure>
+        <svg width="32" height="32" viewBox="0 0 120 120"><path d="M16 18 Q60 8 104 18 L104 26 Q60 16 16 26 Z" fill="#0c2340"/><path d="M16 102 Q60 112 104 102 L104 94 Q60 104 16 94 Z" fill="#0c2340"/><rect x="32" y="30" width="18" height="60" rx="2" fill="#0e8a4d"/><rect x="71" y="30" width="18" height="60" rx="2" fill="none" stroke="#0b6fff" stroke-width="8"/></svg>
+        <figcaption>32px</figcaption>
+      </figure>
+      <figure>
+        <svg width="16" height="16" viewBox="0 0 120 120"><rect x="26" y="22" width="26" height="76" rx="4" fill="#0e8a4d"/><rect x="68" y="22" width="26" height="76" rx="4" fill="none" stroke="#0b6fff" stroke-width="12"/></svg>
+        <figcaption>16px favicon — pillars only</figcaption>
+      </figure>
+    </div>
+
+    <h2>Runner-ups, vetted</h2>
+    <div class="runners">
+      <div class="runner">
+        <h3>Boaz</h3>
+        <p>The richest single-name story — strength, the redeemer of Ruth, the left pillar itself. But the lane is
+          occupied: an active payment-processing company runs boaz.financial, and Boaz-named financial consultancies
+          exist. Usable only with a qualifier (Boaz Markets), which dilutes the Robinhood-style punch.</p>
+      </div>
+      <div class="runner">
+        <h3>Teomim / Teom</h3>
+        <p>Hebrew for Gemini itself — Mazal Teomim is your actual birth sign in the tradition. Maximally yours,
+          minimally contested. The friction is spelling and pronunciation for a mass-market US audience; "Teom" (twin,
+          singular) softens it and happens to sound like "team." Keep it in reserve.</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:28px">On clearance: I ran preliminary collision searches in fintech and app
+      stores — Gemel came back clean where Boaz and Ashlar did not — but a brand decision needs a real USPTO/TESS
+      search and ideally a trademark attorney before you put it on anything public. I'm not a lawyer and this isn't
+      legal clearance. On the symbolism: Jachin and Boaz are drawn from the Temple of Solomon and carried through
+      Masonic tradition — the identity treats them as architecture and meaning, not ritual; nothing sacred is
+      reproduced or claimed.</p>
+
+  </div>
+</body>
+
+</html>

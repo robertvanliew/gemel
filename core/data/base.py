@@ -19,13 +19,18 @@ class DataAdapter(ABC):
 
 
 def normalize_bars(df: pd.DataFrame) -> pd.DataFrame:
-    """Map any source frame with OHLCV-ish columns onto the canonical schema."""
+    """Map any source frame with OHLCV-ish columns onto the canonical schema.
+
+    Guarantees float dtypes for all five columns (the public schema contract
+    downstream phases rely on) and a unique, sorted, tz-naive date index.
+    """
     out = df.rename(columns={c: c.lower() for c in df.columns})
     out = out[["open", "high", "low", "close", "volume"]].astype(
-        {"open": float, "high": float, "low": float, "close": float}
+        {"open": float, "high": float, "low": float, "close": float, "volume": float}
     )
     idx = pd.DatetimeIndex(out.index)
     if idx.tz is not None:
         idx = idx.tz_localize(None)
     out.index = idx.normalize()
+    out = out[~out.index.duplicated(keep="last")]  # one row per day
     return out.sort_index()

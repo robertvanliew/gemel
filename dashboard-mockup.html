@@ -1766,6 +1766,16 @@
             </div>
           </div>
         </div>
+
+        <div class="panel">
+          <h3>Losing-streak simulator <span class="help" data-help="Even a winning strategy hits long losing streaks — they're variance, not a broken system. This runs 5,000 simulated runs of N trades at your win rate and shows how long your worst losing streak is likely to get, so a rough patch doesn't shake you out of a sound plan."></span></h3>
+          <div class="chartctl">
+            <label>Win rate <output id="ss-wr-out">70%</output><input type="range" id="ss-wr" min="40" max="95" value="70"></label>
+            <label>Trades <output id="ss-n-out">100</output><input type="range" id="ss-n" min="20" max="300" step="10" value="100"></label>
+          </div>
+          <div id="ss-readout" class="softtext" style="margin:6px 0 4px"></div>
+          <div id="ss-chart" style="height:220px"></div>
+        </div>
       </section>
 
       <!-- ===== BACKTESTER ===== -->
@@ -3331,6 +3341,9 @@
       flipLive();
       window.__liveAnalytics = true;  // suppress the sample drawAnalytics from here on
       const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+      // seed the streak simulator with your real win rate once you have closed trades
+      const ssWr = document.getElementById('ss-wr');
+      if (ssWr && d.n_trades > 0) { ssWr.value = Math.round(d.win_rate); if (typeof runStreakSim === 'function') runStreakSim(); }
       set('an-winrate', d.win_rate.toFixed(0) + '%');
       set('an-ntrades', d.n_trades + ' closed trade' + (d.n_trades === 1 ? '' : 's'));
       set('an-avgwl', fmtUSD(d.avg_win) + ' / ' + fmtUSD(Math.abs(d.avg_loss)));
@@ -3374,10 +3387,44 @@
         .then(d => { analyticsLoaded = true; renderAnalytics(d); }).catch(() => { });
     }
     // force a re-render on click so the live charts draw at full size in the now-visible panel
-    document.querySelectorAll('.nav a[data-view="analytics"]').forEach(a => a.addEventListener('click', () => loadAnalytics(true)));
+    document.querySelectorAll('.nav a[data-view="analytics"]').forEach(a => a.addEventListener('click', () => { loadAnalytics(true); runStreakSim(); }));
+
+    // ---- Monte Carlo losing-streak simulator ----
+    function simulateStreaks(p, n, runs) {
+      const out = new Array(runs);
+      for (let r = 0; r < runs; r++) { let cur = 0, mx = 0; for (let i = 0; i < n; i++) { if (Math.random() < p) cur = 0; else { cur++; if (cur > mx) mx = cur; } } out[r] = mx; }
+      return out;
+    }
+    function runStreakSim() {
+      const wrEl = document.getElementById('ss-wr'), nEl = document.getElementById('ss-n');
+      if (!wrEl || !document.getElementById('ss-chart')) return;
+      const p = (+wrEl.value) / 100, n = +nEl.value, runs = 5000;
+      document.getElementById('ss-wr-out').textContent = wrEl.value + '%';
+      document.getElementById('ss-n-out').textContent = n;
+      const res = simulateStreaks(p, n, runs).sort((a, b) => a - b);
+      const median = res[Math.floor(runs * 0.5)], p95 = res[Math.floor(runs * 0.95)], worst = res[runs - 1];
+      // histogram
+      const maxv = worst, counts = new Array(maxv + 1).fill(0);
+      res.forEach(v => counts[v]++);
+      const x = counts.map((_, i) => i), y = counts.map(c => +(c / runs * 100).toFixed(1));
+      Plotly.react('ss-chart', [{
+        x, y, type: 'bar', marker: { color: x.map(v => v >= p95 ? cssv('--red') : cssv('--accent')), opacity: .85 },
+        hovertemplate: '%{x} losses in a row<br>%{y}% of runs<extra></extra>'
+      }], {
+        ...dark, margin: { l: 40, r: 14, t: 8, b: 34 },
+        xaxis: { ...dark.xaxis, title: { text: 'longest losing streak (consecutive losses)', font: { size: 11 } }, dtick: 1 },
+        yaxis: { ...dark.yaxis, ticksuffix: '%' }
+      }, cfg);
+      const ro = document.getElementById('ss-readout');
+      if (ro) ro.innerHTML = `At a <b>${wrEl.value}%</b> win rate over <b>${n}</b> trades (5,000 simulated runs): `
+        + `typical worst streak <b>${median}</b> in a row · 1-in-20 stretch hits <b>${p95}</b> · worst simulated <b>${worst}</b>. `
+        + `A losing streak is variance — your <i>rules</i>, not your nerve, decide whether a sound strategy stays in play.`;
+    }
+    ['ss-wr', 'ss-n'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('input', runStreakSim); });
 
     loadJournal(false);
     loadAnalytics(false);
+    runStreakSim();
 
     // ---- Backtester (live) ----
     const REGIME_ICON = { trending_up: 'Trending up', choppy: 'Choppy', declining: 'Declining' };

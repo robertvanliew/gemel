@@ -78,11 +78,10 @@ def backtest(ticker: str = "SPY", strategy: str = "bull_put_spread",
 
     Defaults to the last ~8 years through today; the sensitivity grid re-simulates
     across delta x DTE, so this is the slowest endpoint (several seconds)."""
-    s = date.fromisoformat(start) if start else date(date.today().year - 8, 1, 1)
-    e = date.fromisoformat(end) if end else date.today()
-    adapter = make_adapter()
     try:
-        result = run_backtest(adapter, ticker=ticker, strategy=strategy,
+        s = date.fromisoformat(start) if start else date(date.today().year - 8, 1, 1)
+        e = date.fromisoformat(end) if end else date.today()
+        result = run_backtest(adapter := make_adapter(), ticker=ticker, strategy=strategy,
                               start=s, end=e, dte=dte, target_delta=delta)
     except ValueError as ex:
         raise HTTPException(status_code=422, detail=str(ex))

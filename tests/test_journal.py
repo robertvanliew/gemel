@@ -230,3 +230,15 @@ def test_list_campaigns_net_pnl(session):
     camp_dict = campaigns[0]
     assert camp_dict["net_pnl"] == pytest.approx(64.0)
     assert len(camp_dict["legs"]) == 2
+
+
+def test_process_grade_bands():
+    from journal.service import process_grade
+    assert process_grade(100.0) == "A"
+    assert process_grade(90.0) == "A"
+    assert process_grade(89.9) == "B"
+    assert process_grade(80.0) == "B"
+    assert process_grade(75.0) == "C"
+    assert process_grade(65.0) == "D"
+    assert process_grade(50.0) == "F"
+    assert process_grade(None) is None

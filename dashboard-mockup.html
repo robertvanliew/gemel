@@ -1226,6 +1226,35 @@
       font-weight: 600
     }
 
+    /* process grade chip */
+    .grade {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 2px;
+      font-weight: 700;
+      font-size: 12px
+    }
+
+    .grade-A,
+    .grade-B {
+      background: #e2f3e9;
+      color: var(--green)
+    }
+
+    .grade-C {
+      background: #fdf3dd;
+      color: var(--amber)
+    }
+
+    .grade-D,
+    .grade-F {
+      background: #fdeae8;
+      color: var(--red)
+    }
+
     /* pre-trade flight check */
     .fc {
       border: 1px solid var(--line);
@@ -1550,7 +1579,7 @@
                   <th>Ticker</th>
                   <th>Strategy</th>
                   <th>P&L</th>
-                  <th>Rules</th>
+                  <th><span class="term" data-tip="Process grade — how well you followed your own rules on this trade (A = all rules followed), independent of whether it won or lost. Separates 'the strategy didn't work' from 'I didn't follow the strategy.'">Grade</span></th>
                   <th>Result</th>
                 </tr>
               </thead>
@@ -3116,10 +3145,11 @@
       const closedTb = document.getElementById('jrnl-closed');
       if (closedTb) closedTb.innerHTML = d.closed.length ? d.closed.map(t => {
         const win = (t.pnl ?? 0) >= 0;
-        const adh = t.adherence == null ? '—' : `<span class="${adhClass(t.adherence)}">${t.adherence.toFixed(0)}%</span>`;
+        const grade = t.grade == null ? '<span class="softtext">—</span>'
+          : `<span class="grade grade-${t.grade}" title="${t.adherence != null ? t.adherence.toFixed(0) + '% of rules followed' : ''}">${t.grade}</span>`;
         return `<tr><td>${t.ticker}</td><td>${STRAT_LABEL[t.strategy] || t.strategy}</td>
           <td style="color:${win ? 'var(--green)' : 'var(--red)'}">${win ? '+' : '−'}${fmtUSD(Math.abs(t.pnl ?? 0))}</td>
-          <td>${adh}</td><td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
+          <td>${grade}</td><td><span class="pill ${win ? 'win' : 'loss'}">${win ? 'WIN' : 'LOSS'}</span></td></tr>`;
       }).join('') : '<tr><td colspan="5" class="softtext">No closed trades yet.</td></tr>';
       const campTb = document.getElementById('jrnl-campaigns');
       if (campTb) campTb.innerHTML = d.campaigns.length ? d.campaigns.map(c => {

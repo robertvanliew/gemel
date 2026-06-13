@@ -209,10 +209,15 @@ def _trade_dict(t) -> dict:
     }
 
 
+def _with_grade(session, t) -> dict:
+    adh = journal.adherence_pct(session, t.id)
+    return {**_trade_dict(t), "adherence": adh, "grade": journal.process_grade(adh)}
+
+
 @app.get("/api/journal/trades")
 def list_trades(session: Session = Depends(get_session)) -> dict:
-    open_ = [{**_trade_dict(t), "adherence": journal.adherence_pct(session, t.id)} for t in journal.list_open(session)]
-    closed = [{**_trade_dict(t), "adherence": journal.adherence_pct(session, t.id)} for t in journal.list_closed(session)]
+    open_ = [_with_grade(session, t) for t in journal.list_open(session)]
+    closed = [_with_grade(session, t) for t in journal.list_closed(session)]
     camps = [
         {"campaign": {"id": c["campaign"].id, "ticker": c["campaign"].ticker,
                        "strategy": c["campaign"].strategy, "status": c["campaign"].status},

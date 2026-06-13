@@ -1,9 +1,10 @@
-"""FastAPI app — serves the local dashboard and the live data API.
+"""Gemel server — FastAPI app serving the local dashboard and the read-only API.
 
 Read-only with respect to the brokerage: endpoints read market data, or
 read/write the LOCAL journal database. Nothing here places an order.
-Launch with run.bat (uvicorn) -> localhost:8000.
+Launch with run.bat (uvicorn gemel_server:app) -> localhost:8000.
 """
+import os
 from datetime import date, datetime
 from pathlib import Path
 
@@ -20,14 +21,17 @@ from journal import service as journal
 from market.service import compute_breadth
 from scanner.scan import run_scan
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 DASHBOARD = ROOT / "dashboard-mockup.html"
+
+# Paper account size used for the 2% per-trade max-loss cap (override in .env).
+ACCOUNT_SIZE = float(os.getenv("ACCOUNT_SIZE", "35000"))
+MAX_LOSS_CAP_PCT = 0.02
 
 app = FastAPI(title="Gemel", docs_url=None, redoc_url=None)
 
-# Local journal DB (data/trading.sqlite). Created on first launch.
-(ROOT / "data").mkdir(exist_ok=True)
-_engine = make_engine(f"sqlite:///{(ROOT / 'data' / 'trading.sqlite').as_posix()}")
+# Local journal DB (gemel.db). Created on first launch.
+_engine = make_engine(f"sqlite:///{(ROOT / 'gemel.db').as_posix()}")
 init_db(_engine)
 
 

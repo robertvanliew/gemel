@@ -1114,6 +1114,82 @@
       letter-spacing: .04em
     }
 
+    /* chart control bar: segmented timeframe + legend chips */
+    .chartbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 2px 0 14px
+    }
+
+    .tfbar {
+      display: inline-flex;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 2px
+    }
+
+    .tfbtn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font: 500 12px/1 var(--font-sans);
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer
+    }
+
+    .tfbtn:hover {
+      color: var(--ink)
+    }
+
+    .tfbtn.active {
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 600
+    }
+
+    [data-theme="dark"] .tfbtn.active {
+      background: var(--chip)
+    }
+
+    .chartlegend {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .chartlegend .lg {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .lg-line {
+      width: 14px;
+      height: 2px;
+      border-radius: 2px
+    }
+
+    .lg-candle {
+      width: 9px;
+      height: 12px;
+      border-radius: 1px;
+      background: linear-gradient(var(--green) 0 50%, var(--red) 50% 100%)
+    }
+
+    .lg-vol {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--muted);
+      opacity: .45
+    }
+
     /* cockpit cards are links */
     a.card.cockpit {
       cursor: pointer;
@@ -1728,7 +1804,22 @@
               <option>XLV</option>
             </select>
           </h3>
-          <div id="market-spy" class="skel" style="height:440px"></div>
+          <div class="chartbar">
+            <div class="tfbar" id="mkt-tf">
+              <button class="tfbtn" data-tf="1">1M</button>
+              <button class="tfbtn" data-tf="3">3M</button>
+              <button class="tfbtn active" data-tf="6">6M</button>
+              <button class="tfbtn" data-tf="12">1Y</button>
+              <button class="tfbtn" data-tf="all">All</button>
+            </div>
+            <div class="chartlegend">
+              <span class="lg"><i class="lg-candle"></i> Candles</span>
+              <span class="lg"><i class="lg-line" style="background:var(--accent)"></i> EMA 20</span>
+              <span class="lg"><i class="lg-line" style="background:var(--amber)"></i> EMA 50</span>
+              <span class="lg"><i class="lg-vol"></i> Volume</span>
+            </div>
+          </div>
+          <div id="market-spy" class="skel" style="height:430px"></div>
         </div>
 
         <div class="panel">
@@ -2622,10 +2713,11 @@
       const el = document.getElementById('market-spy');
       if (!el) return;
       el.classList.add('skel');
-      fetch('/api/ohlc?ticker=' + encodeURIComponent(ticker) + '&days=180')
+      fetch('/api/ohlc?ticker=' + encodeURIComponent(ticker) + '&days=380')
         .then(r => { if (!r.ok) throw 0; return r.json(); })
         .then(d => {
           flipLive();
+          window.__mkt = d;   // cache series for the timeframe controls
           const up = cssv('--green'), dn = cssv('--red');
           const e20 = emaArr(d.close, 20), e50 = emaArr(d.close, 50);
           const volColors = d.close.map((c, i) => c >= d.open[i] ? up : dn);
@@ -2639,25 +2731,39 @@
             { x: d.dates, y: e50, type: 'scatter', mode: 'lines', name: 'EMA 50', line: { color: cssv('--amber'), width: 1.6 } },
             { x: d.dates, y: d.volume, type: 'bar', name: 'Vol', yaxis: 'y2', marker: { color: volColors, opacity: .4 }, hoverinfo: 'skip' }
           ], {
-            ...dark, margin: { l: 50, r: 14, t: 28, b: 28 }, dragmode: 'pan', hovermode: 'x unified',
-            showlegend: true, legend: { orientation: 'h', y: 1.08, font: { size: 10 } },
-            xaxis: {
-              gridcolor: cssv('--grid'), rangeslider: { visible: false }, showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot',
-              rangeselector: {
-                bgcolor: cssv('--panel2'), activecolor: cssv('--accent'), bordercolor: cssv('--line'), borderwidth: 1, font: { color: cssv('--ink'), size: 10 },
-                buttons: [{ count: 1, label: '1M', step: 'month', stepmode: 'backward' }, { count: 3, label: '3M', step: 'month', stepmode: 'backward' }, { count: 6, label: '6M', step: 'month', stepmode: 'backward' }, { step: 'all', label: 'ALL' }]
-              }
-            },
-            yaxis: { gridcolor: cssv('--grid'), domain: [0.26, 1], tickprefix: '$' },
+            ...dark, margin: { l: 50, r: 14, t: 10, b: 28 }, dragmode: 'pan', hovermode: 'x unified',
+            showlegend: false,  // custom Base legend lives in .chartlegend
+            xaxis: { gridcolor: cssv('--grid'), rangeslider: { visible: false }, showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot' },
+            yaxis: { gridcolor: cssv('--grid'), domain: [0.26, 1], tickprefix: '$', autorange: true },
             yaxis2: { gridcolor: 'rgba(0,0,0,0)', domain: [0, 0.2], showticklabels: false },
             newshape: { line: { color: cssv('--accent'), width: 2 } }
           }, {
             ...cfg, displayModeBar: true, displaylogo: false, scrollZoom: true,
             modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'drawrect', 'eraseshape'],
             modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d']
-          }).then(() => el.classList.remove('skel'));
+          }).then(() => {
+            el.classList.remove('skel');
+            applyTimeframe(document.querySelector('#mkt-tf .tfbtn.active') || document.querySelector('#mkt-tf .tfbtn[data-tf="6"]'));
+          });
         }).catch(() => { el.classList.remove('skel'); });
     }
+
+    // Base timeframe control — sets x range AND rescales y/volume to the window
+    // (the thing Plotly's built-in range buttons don't do)
+    function applyTimeframe(btn) {
+      const d = window.__mkt;
+      if (!btn || !d || !d.dates.length) return;
+      document.querySelectorAll('#mkt-tf .tfbtn').forEach(b => b.classList.toggle('active', b === btn));
+      const tf = btn.dataset.tf, end = d.dates[d.dates.length - 1];
+      let start;
+      if (tf === 'all') start = d.dates[0];
+      else { const s = new Date(end + 'T00:00:00'); s.setMonth(s.getMonth() - (+tf)); start = s.toISOString().slice(0, 10); }
+      let i0 = d.dates.findIndex(x => x >= start); if (i0 < 0) i0 = 0;
+      const lo = Math.min(...d.low.slice(i0)), hi = Math.max(...d.high.slice(i0)), pad = (hi - lo) * 0.06 || 1;
+      const vmax = Math.max(...d.volume.slice(i0)) * 1.1 || 1;
+      Plotly.relayout('market-spy', { 'xaxis.range': [start, end], 'yaxis.range': [lo - pad, hi + pad], 'yaxis2.range': [0, vmax] });
+    }
+    document.querySelectorAll('#mkt-tf .tfbtn').forEach(b => b.addEventListener('click', () => applyTimeframe(b)));
     const mktSel = document.getElementById('mkt-symbol');
     if (mktSel) mktSel.addEventListener('change', () => drawMarketChart(mktSel.value));
 

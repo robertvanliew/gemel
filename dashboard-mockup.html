@@ -4,35 +4,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemel — strength, established</title>
-  <!-- Gemel mark (pillar glyph) as favicon: solid green short-leg pillar + outlined blue long-leg pillar -->
+  <title>Gemel</title>
+  <!-- Base-style mark: solid electric-blue logo block -->
   <link rel="icon"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='26' y='22' width='26' height='76' rx='4' fill='%230e8a4d'/%3E%3Crect x='68' y='22' width='26' height='76' rx='4' fill='none' stroke='%230b6fff' stroke-width='12'/%3E%3C/svg%3E">
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230000ff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap"
     rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <script src="https://s3.tradingview.com/tv.js"></script>
   <style>
     :root {
-      /* v4 exchange light theme — the token contract; charts read --grid and --heat-* at render time */
-      --bg: #f2f5f9;
+      /* Base style system — white canvas, rationed electric-blue, flat surfaces.
+         Charts read --grid and --heat-* at render time. */
+      --bg: #ffffff;
       --panel: #ffffff;
-      --panel2: #f3f6fa;
-      --line: #dde4ec;
-      --ink: #0c1f3f;
-      --muted: #5a6b80;
-      --accent: #0b6fff;
-      --accent2: #0a58c4;
-      --green: #0e8a4d;
-      --red: #d6342c;
-      --amber: #b07b0a;
-      --chip: #e9eff7;
-      --grid: #e4eaf1;
-      --heat-lo: #efa8a1;
-      --heat-mid: #f4f6f9;
-      --heat-hi: #8fd3ab;
+      --panel2: #f2f2f2;
+      --line: #e6e6e6;
+      --line-strong: #b1b7c3;
+      --ink: #000000;
+      --muted: #717886;
+      --fog: #999999;
+      --accent: #0000ff;
+      --accent2: #0000cc;
+      --green: #098551;
+      --red: #c0392b;
+      --amber: #8a6d00;
+      --chip: #f2f2f2;
+      --grid: #ececec;
+      --heat-lo: #f1c9c4;
+      --heat-mid: #f2f2f2;
+      --heat-hi: #b7e0c9;
+      /* Base type system */
+      --font-display: 'Doto', 'Inter', system-ui, sans-serif;
+      --font-sans: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
     }
 
     /* dark theme behind the toggle — original terminal palette */
@@ -61,7 +69,7 @@
 
     body {
       margin: 0;
-      font-family: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+      font-family: var(--font-sans);
       background: var(--bg);
       color: var(--ink);
       font-size: 14px;
@@ -79,11 +87,12 @@
     }
 
     /* sidebar — the exchange pattern: dark navy rail, white data surfaces */
+    /* Base sidebar: white rail, blue logo block, chevron nav */
     .side {
-      width: 230px;
-      background: #0c2340;
-      border-right: 1px solid #0c2340;
-      padding: 20px 14px;
+      width: 212px;
+      background: #ffffff;
+      border-right: 1px solid var(--line);
+      padding: 24px 16px;
       position: sticky;
       top: 0;
       height: 100vh
@@ -92,73 +101,95 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 8px 18px;
-      font-weight: 800;
-      font-size: 16px;
-      letter-spacing: -.2px;
-      color: #fff
+      gap: 11px;
+      padding: 0 2px
     }
 
-    .brand .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--accent)
+    .brand .logoblock {
+      width: 30px;
+      height: 30px;
+      background: var(--accent);
+      flex: none
+    }
+
+    .brand .wordmark {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 23px;
+      letter-spacing: .04em;
+      color: var(--ink);
+      line-height: 1
+    }
+
+    .nav {
+      margin-top: 22px
     }
 
     .nav a {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      color: #c7d3e4;
-      margin-bottom: 2px;
+      justify-content: space-between;
+      padding: 9px 4px;
+      color: var(--ink);
       cursor: pointer;
-      font-weight: 500
+      font-size: 16px
     }
 
-    .nav a:hover {
-      background: #16335c
+    .nav a .label {
+      display: flex;
+      align-items: center;
+      gap: 11px
+    }
+
+    .nav a::after {
+      content: '\203A';
+      color: var(--fog);
+      font-size: 17px
+    }
+
+    .nav a:hover,
+    .nav a:hover::after,
+    .nav a.active,
+    .nav a.active::after {
+      color: var(--accent)
     }
 
     .nav a.active {
-      background: var(--accent);
-      color: #fff
+      font-weight: 600
     }
 
     .nav .ico {
       width: 18px;
-      text-align: center
+      display: flex
     }
 
     .side .note {
       position: absolute;
-      bottom: 16px;
-      left: 14px;
-      right: 14px;
+      bottom: 18px;
+      left: 16px;
+      right: 16px;
       font-size: 11px;
-      color: #8fa3bd;
+      color: var(--muted);
       line-height: 1.5;
-      border-top: 1px solid #1d3d68;
-      padding-top: 12px
+      border-top: 1px solid var(--line);
+      padding-top: 14px
     }
 
     .themetoggle {
       width: 100%;
-      margin: 0 0 14px;
-      background: transparent;
-      border: 1px solid #2a4a78;
-      color: #c7d3e4;
+      margin: 18px 0 0;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--ink);
       border-radius: 8px;
-      padding: 7px 10px;
-      font-size: 12px;
+      padding: 9px 10px;
+      font-size: 13px;
       cursor: pointer
     }
 
     .themetoggle:hover {
-      background: #16335c
+      border-color: var(--accent);
+      color: var(--accent)
     }
 
     [data-theme="dark"] .side {
@@ -166,22 +197,18 @@
       border-right-color: var(--line)
     }
 
-    [data-theme="dark"] .brand {
+    [data-theme="dark"] .brand .wordmark {
       color: var(--ink)
     }
 
     [data-theme="dark"] .side .nav a {
-      color: var(--muted)
+      color: var(--ink)
     }
 
-    [data-theme="dark"] .side .nav a:hover {
-      background: var(--panel)
-    }
-
+    [data-theme="dark"] .side .nav a:hover,
     [data-theme="dark"] .side .nav a.active {
-      background: var(--accent);
-      color: #0b0f14;
-      font-weight: 700
+      color: var(--accent);
+      background: transparent
     }
 
     [data-theme="dark"] .side .note {
@@ -253,9 +280,8 @@
     .card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, .04)
+      border-radius: 8px;
+      padding: 16px
     }
 
     .card .lbl {
@@ -288,10 +314,9 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, .04)
+      margin-bottom: 18px
     }
 
     .panel h3 {
@@ -347,7 +372,7 @@
     .pill {
       display: inline-block;
       padding: 2px 9px;
-      border-radius: 20px;
+      border-radius: 2px;
       font-size: 12px;
       font-weight: 600
     }
@@ -446,7 +471,7 @@
       align-items: center;
       gap: 16px;
       padding: 18px;
-      border-radius: 12px;
+      border-radius: 8px;
       border: 1px solid
     }
 
@@ -484,9 +509,10 @@
     }
 
     .topcard {
-      background: linear-gradient(180deg, #f3f9ff, #eaf3fc);
-      border: 1px solid #bcdcf5;
-      border-radius: 12px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-top: 2px solid var(--accent);
+      border-radius: 8px;
       padding: 18px
     }
 
@@ -605,7 +631,7 @@
       font-size: 11px;
       font-weight: 700;
       padding: 2px 9px;
-      border-radius: 5px;
+      border-radius: 2px;
       flex: none
     }
 
@@ -884,33 +910,23 @@
       background: #0f2e16
     }
 
-    /* ===== Gemel branding ===== */
-    .brand {
-      padding-bottom: 6px
-    }
-
-    .brand svg {
-      display: block
-    }
-
+    /* ===== Base category label under the wordmark ===== */
     .brand-tag {
-      font-family: "Newsreader", Georgia, serif;
-      font-style: italic;
-      font-size: 12.5px;
-      color: #8fa3bd;
-      padding: 0 8px 16px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: .073em;
+      color: var(--muted);
+      padding: 12px 2px 4px;
       line-height: 1.4
     }
 
-    [data-theme="dark"] .brand-tag {
-      color: var(--muted)
-    }
-
-    /* page titles in the brand serif */
+    /* page titles — Base sans, tight negative tracking */
     .head h1 {
-      font-family: "Newsreader", Georgia, serif;
-      font-weight: 600;
-      letter-spacing: 0
+      font-family: var(--font-sans);
+      font-weight: 500;
+      font-size: 32px;
+      letter-spacing: -.02em
     }
 
     /* nav icons: small line glyphs inherit the link color */
@@ -983,27 +999,18 @@
     <!-- SIDEBAR -->
     <aside class="side">
       <div class="brand">
-        <svg width="138" height="32" viewBox="0 0 380 86" role="img" aria-label="Gemel">
-          <text x="0" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="#fff">GE</text>
-          <g transform="translate(108,0)">
-            <rect x="2" y="14" width="56" height="6" fill="#fff" />
-            <rect x="8" y="20" width="11" height="42" fill="#0e8a4d" />
-            <rect x="41" y="20" width="11" height="42" fill="none" stroke="#0b6fff" stroke-width="3.5" />
-            <rect x="4" y="58" width="19" height="5" fill="#fff" />
-            <rect x="37" y="58" width="19" height="5" fill="#fff" />
-          </g>
-          <text x="178" y="62" font-family="Newsreader,Georgia,serif" font-size="64" font-weight="500" letter-spacing="4" fill="#fff">EL</text>
-        </svg>
+        <span class="logoblock"></span>
+        <span class="wordmark">Gemel</span>
       </div>
-      <div class="brand-tag">The coach, not the calculator.</div>
+      <div class="brand-tag">Disciplined options coaching</div>
       <button class="themetoggle" id="themetoggle">Switch to dark</button>
       <nav class="nav">
-        <a data-view="positions" class="active"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg></span> Positions</a>
-        <a data-view="journal"><span class="ico"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15H8a2 2 0 0 1-2-2z" /><path d="M10 4v16" /></svg></span> Journal</a>
-        <a data-view="analytics"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5v15h16" /><path d="M7 15l4-4 3 2 5-6" /></svg></span> Analytics</a>
-        <a data-view="backtester"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 3h6" /><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg></span> Backtester</a>
-        <a data-view="scanner"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" /></svg></span> Scanner</a>
-        <a data-view="learn"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 4 2 9l10 5 10-5-10-5z" /><path d="M6 11v5c0 1.2 3 3 6 3s6-1.8 6-3v-5" /></svg></span> Learn</a>
+        <a data-view="positions" class="active"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg></span> Positions</span></a>
+        <a data-view="journal"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15H8a2 2 0 0 1-2-2z" /><path d="M10 4v16" /></svg></span> Journal</span></a>
+        <a data-view="analytics"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5v15h16" /><path d="M7 15l4-4 3 2 5-6" /></svg></span> Analytics</span></a>
+        <a data-view="backtester"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 3h6" /><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg></span> Backtester</span></a>
+        <a data-view="scanner"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" /></svg></span> Scanner</span></a>
+        <a data-view="learn"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 4 2 9l10 5 10-5-10-5z" /><path d="M6 11v5c0 1.2 3 3 6 3s6-1.8 6-3v-5" /></svg></span> Learn</span></a>
       </nav>
       <div class="note">
         <span class="badge-roloff" id="mode-badge">MOCKUP</span><br><br>
@@ -1515,8 +1522,13 @@
           this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
 
         <div class="panel">
-          <h3>SPY — regime chart <span class="muted" style="font-weight:400">— candles, 20/50 EMA, volume</span></h3>
-          <div id="market-spy" class="skel" style="height:400px"></div>
+          <h3>SPY — live chart <span class="muted" style="font-weight:400">— TradingView · candles, EMA, volume, drawing tools</span></h3>
+          <div id="tv_chart" style="height:440px"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Universe heatmap <span class="muted" style="font-weight:400">— Finviz-style, shaded by RSI momentum</span></h3>
+          <div id="etf-heatmap" class="skel" style="height:240px"></div>
         </div>
 
         <div class="panel">
@@ -2397,73 +2409,51 @@
       }], { ...dark, margin: { l: 60, r: 14, t: 10, b: 30 } }, cfg);
     }
 
-    // ===== Scanner: candlestick regime chart — 20/50 EMA, volume, range buttons, crosshair
+    // ===== Scanner: TradingView live chart (real candles/EMA/volume/drawing) =====
+    function initTradingView() {
+      const el = document.getElementById('tv_chart');
+      if (!el || !window.TradingView) return;
+      el.innerHTML = '';
+      new TradingView.widget({
+        container_id: 'tv_chart',
+        autosize: true,
+        symbol: 'AMEX:SPY',
+        interval: 'D',
+        timezone: 'America/New_York',
+        theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+        style: '1',
+        locale: 'en',
+        hide_side_toolbar: false,
+        allow_symbol_change: true,
+        studies: ['MAExp@tv-basicstudies'],   // EMA overlay; chart is fully interactive for more
+      });
+    }
+
+    // Finviz-style universe heatmap: one tile per ETF, shaded by RSI momentum
+    function renderHeatmap(results) {
+      const el = document.getElementById('etf-heatmap');
+      if (!el || !results || !results.length) return;
+      const labels = results.map(r => r.ticker), rsis = results.map(r => r.rsi);
+      Plotly.react('etf-heatmap', [{
+        type: 'treemap',
+        labels, parents: labels.map(() => ''), values: labels.map(() => 1),
+        marker: {
+          colors: rsis, colorscale: [[0, cssv('--heat-lo')], [0.5, cssv('--heat-mid')], [1, cssv('--heat-hi')]],
+          cmin: 30, cmid: 50, cmax: 70, line: { color: cssv('--bg'), width: 3 }
+        },
+        text: results.map(r => `RSI ${r.rsi.toFixed(0)} · IVR ${r.ivr.toFixed(0)}<br>${r.qualifies ? 'QUALIFIES' : 'screened out'}`),
+        texttemplate: '<b>%{label}</b><br>%{text}', textposition: 'middle center',
+        textfont: { color: cssv('--ink'), size: 12, family: 'Inter, sans-serif' },
+        hovertemplate: '%{label} — RSI %{color:.0f}<extra></extra>',
+        tiling: { pad: 3 }
+      }], { ...dark, margin: { l: 6, r: 6, t: 6, b: 6 } }, cfg).then(() => el.classList.remove('skel'));
+    }
+
     let sDrawn = false;
     function drawScanner() {
       if (sDrawn) return; sDrawn = true;
-      // deterministic synthetic OHLC ending at the mock spot price
-      const rng = (seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)(42);
-      const N = 240, dates = [], o = [], h = [], l = [], c = [], vol = [];
-      let px = 470;
-      const today = new Date('2026-06-12');
-      for (let k = 0; k < N; k++) {
-        const d = new Date(today); d.setDate(d.getDate() - Math.round((N - k) * 1.45));
-        dates.push(d.toISOString().slice(0, 10));
-        const drift = 0.0011, shock = (rng() - 0.48) * 0.016;
-        const open = px, close = px * (1 + drift + shock);
-        o.push(open); c.push(close);
-        h.push(Math.max(open, close) * (1 + rng() * 0.006));
-        l.push(Math.min(open, close) * (1 - rng() * 0.006));
-        vol.push(40e6 + rng() * 60e6 * (1 + Math.abs(shock) * 40));
-        px = close;
-      }
-      const scale = 581.40 / c[N - 1];
-      [o, h, l, c].forEach(a => a.forEach((v, n) => a[n] = +(v * scale).toFixed(2)));
-      const ema = (arr, n) => {
-        const k = 2 / (n + 1), out = [arr[0]];
-        for (let m = 1; m < arr.length; m++) out.push(arr[m] * k + out[m - 1] * (1 - k));
-        return out;
-      };
-      const up = cssv('--green'), dn = cssv('--red');
-      Plotly.react('market-spy', [
-        {
-          x: dates, open: o, high: h, low: l, close: c, type: 'candlestick', name: 'SPY',
-          increasing: { line: { color: up, width: 1 }, fillcolor: up },
-          decreasing: { line: { color: dn, width: 1 }, fillcolor: dn },
-          yaxis: 'y', whiskerwidth: .4
-        },
-        { x: dates, y: ema(c, 20), type: 'scatter', mode: 'lines', name: 'EMA 20', line: { color: cssv('--accent'), width: 1.4 } },
-        { x: dates, y: ema(c, 50), type: 'scatter', mode: 'lines', name: 'EMA 50 — master gate', line: { color: cssv('--amber'), width: 1.6 } },
-        {
-          x: dates, y: vol, type: 'bar', name: 'Volume', yaxis: 'y2',
-          marker: { color: c.map((v, n) => v >= o[n] ? up : dn), opacity: .45 }, hoverinfo: 'skip'
-        }
-      ], {
-        ...dark,
-        margin: { l: 48, r: 14, t: 30, b: 26 },
-        showlegend: true,
-        legend: { orientation: 'h', y: 1.09, font: { size: 10 } },
-        hovermode: 'x unified',
-        dragmode: 'pan',
-        xaxis: {
-          gridcolor: cssv('--grid'), rangeslider: { visible: false },
-          // default to the last 6 months — 240 candles at full width is too dense a first paint
-          range: [(() => { const s = new Date(today); s.setMonth(s.getMonth() - 6); return s.toISOString().slice(0, 10); })(), dates[N - 1]],
-          showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot',
-          rangeselector: {
-            bgcolor: cssv('--panel2'), activecolor: cssv('--accent'),
-            bordercolor: cssv('--line'), borderwidth: 1, font: { color: cssv('--ink'), size: 10 },
-            buttons: [
-              { count: 1, label: '1M', step: 'month', stepmode: 'backward' },
-              { count: 3, label: '3M', step: 'month', stepmode: 'backward' },
-              { count: 6, label: '6M', step: 'month', stepmode: 'backward' },
-              { step: 'all', label: 'ALL' }
-            ]
-          }
-        },
-        yaxis: { gridcolor: cssv('--grid'), domain: [0.26, 1], tickprefix: '$' },
-        yaxis2: { gridcolor: 'rgba(0,0,0,0)', domain: [0, 0.2], showticklabels: false }
-      }, { ...cfg, scrollZoom: true }).then(() => document.getElementById('market-spy').classList.remove('skel'));
+      initTradingView();
+      if (window.__lastScan) renderHeatmap(window.__lastScan.results);
     }
 
     // ===== theme switching — charts re-render from the new CSS variables
@@ -2564,6 +2554,9 @@
           + 'most often an upcoming FOMC/earnings event inside the expiry window. Standing aside is the correct move; '
           + 'no trade is a position.</div>';
       }
+
+      window.__lastScan = d;     // cache for theme re-render
+      renderHeatmap(d.results);  // Finviz-style universe heatmap
     }
 
     let scanLoaded = false;

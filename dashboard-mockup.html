@@ -989,6 +989,122 @@
       left: auto;
       right: 0
     }
+
+    /* ===== Today home: index strip, breadth bars, cockpit ===== */
+    .idxstrip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 18px
+    }
+
+    .idxcard {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px 6px
+    }
+
+    .idxname {
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: .073em;
+      color: var(--muted);
+      margin-bottom: 4px
+    }
+
+    .tvmini {
+      height: 92px
+    }
+
+    /* breadth split bars */
+    .brow {
+      margin: 14px 0
+    }
+
+    .brow:first-child {
+      margin-top: 4px
+    }
+
+    .brow .blabels {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .04em;
+      margin-bottom: 5px
+    }
+
+    .brow .blabels .up {
+      color: var(--green)
+    }
+
+    .brow .blabels .dn {
+      color: var(--red)
+    }
+
+    .bbar {
+      display: flex;
+      height: 12px;
+      border-radius: 2px;
+      overflow: hidden;
+      background: var(--panel2)
+    }
+
+    .bbar .up {
+      background: var(--green)
+    }
+
+    .bbar .dn {
+      background: var(--red)
+    }
+
+    .brow .bvals {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px
+    }
+
+    .bullbear {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line)
+    }
+
+    .bullbear .gauge {
+      flex: 1;
+      height: 14px;
+      border-radius: 2px;
+      overflow: hidden;
+      display: flex;
+      background: var(--panel2)
+    }
+
+    .bullbear .lbl {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: .04em
+    }
+
+    /* cockpit cards are links */
+    a.card.cockpit {
+      cursor: pointer;
+      transition: border-color .15s
+    }
+
+    a.card.cockpit:hover {
+      border-color: var(--accent)
+    }
+
+    a.card.cockpit .delta {
+      color: var(--accent)
+    }
   </style>
 </head>
 
@@ -1012,7 +1128,8 @@
       <div class="brand-tag">Disciplined options coaching</div>
       <button class="themetoggle" id="themetoggle">Switch to dark</button>
       <nav class="nav">
-        <a data-view="positions" class="active"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg></span> Positions</span></a>
+        <a data-view="today" class="active"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7" /><path d="M6 10v9h12v-9" /></svg></span> Today</span></a>
+        <a data-view="positions"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg></span> Positions</span></a>
         <a data-view="journal"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15H8a2 2 0 0 1-2-2z" /><path d="M10 4v16" /></svg></span> Journal</span></a>
         <a data-view="analytics"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5v15h16" /><path d="M7 15l4-4 3 2 5-6" /></svg></span> Analytics</span></a>
         <a data-view="backtester"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 3h6" /><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg></span> Backtester</span></a>
@@ -1035,8 +1152,57 @@
         <span id="livebar-text">Sample preview — double-click <b>run.bat</b> (or open <b>localhost:8000</b>) to launch the live app with real market data.</span>
       </div>
 
-      <!-- ===== POSITIONS (new home) ===== -->
-      <section class="view active" id="positions">
+      <!-- ===== TODAY (home cockpit) ===== -->
+      <section class="view active" id="today">
+        <div class="head">
+          <div>
+            <h1>Today <span class="help" data-help="Your morning cockpit. The index strip and sector-breadth bars show the tape at a glance; the cards below summarize what needs your attention across the four tools and link straight to each. Read it, decide, then open the tab you need."></span></h1>
+            <div class="sub">The 30-second read on the market and your book.</div>
+          </div>
+          <div class="sub" id="today-date">—</div>
+        </div>
+
+        <!-- live index strip (TradingView) -->
+        <div class="idxstrip">
+          <div class="idxcard"><div class="idxname">Dow Jones</div><div class="tvmini" id="idx-dow"></div></div>
+          <div class="idxcard"><div class="idxname">Nasdaq 100</div><div class="tvmini" id="idx-nasdaq"></div></div>
+          <div class="idxcard"><div class="idxname">S&amp;P 500</div><div class="tvmini" id="idx-sp"></div></div>
+          <div class="idxcard"><div class="idxname">Russell 2000</div><div class="tvmini" id="idx-russell"></div></div>
+        </div>
+
+        <!-- sector breadth -->
+        <div class="panel">
+          <h3>Market breadth <span class="muted" style="font-weight:400">— the 11 S&amp;P sector ETFs (honest sector breadth, not full-market internals)</span></h3>
+          <div id="breadth" class="softtext">Loading live breadth…</div>
+        </div>
+
+        <!-- cockpit cards -->
+        <div class="cards" id="today-cards">
+          <a class="card cockpit" data-view="scanner">
+            <div class="lbl">This week's scan</div>
+            <div class="val" id="ck-scan" style="font-size:20px">—</div>
+            <div class="delta" id="ck-scan-sub">open the Scanner →</div>
+          </a>
+          <a class="card cockpit" data-view="analytics">
+            <div class="lbl">Scaling gate</div>
+            <div class="val" id="ck-gate" style="font-size:20px">—</div>
+            <div class="delta" id="ck-gate-sub">open Analytics →</div>
+          </a>
+          <a class="card cockpit" data-view="positions">
+            <div class="lbl">Open positions</div>
+            <div class="val" id="ck-pos" style="font-size:20px">—</div>
+            <div class="delta" id="ck-pos-sub">open Positions →</div>
+          </a>
+          <a class="card cockpit" data-view="learn">
+            <div class="lbl">Event radar</div>
+            <div class="val" id="ck-event" style="font-size:20px">—</div>
+            <div class="delta" id="ck-event-sub">next scheduled risk</div>
+          </a>
+        </div>
+      </section>
+
+      <!-- ===== POSITIONS ===== -->
+      <section class="view" id="positions">
         <div class="head">
           <div>
             <h1>Positions <span class="help" data-help="Your daily 5-minute check. Each open spread shows its payoff at expiration vs its value today (T+0), how much of the profit target you've captured, and the exit triggers you wrote at entry. Drag the IV and days-forward sliders to stress-test a position before the market moves it."></span></h1>
@@ -2474,6 +2640,7 @@
       if (v === 'analytics') drawAnalytics();
       if (v === 'backtester') drawBacktest();
       if (v === 'scanner') drawScanner();
+      if (v === 'today' && typeof initIndexStrip === 'function') { idxDrawn = false; initIndexStrip(true); if (window.__lastBreadth) renderBreadth(window.__lastBreadth); }
     }
     document.getElementById('themetoggle').addEventListener('click', () =>
       setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
@@ -2490,6 +2657,8 @@
         if (bar) { bar.style.background = '#e2f3e9'; bar.style.borderColor = '#bfe5cd'; bar.style.color = 'var(--green)'; }
         if (dot) dot.style.background = 'var(--green)';
         if (txt) txt.innerHTML = `<b>LIVE</b> — connected to your local engine via <b>${s.source}</b> · SPY <b>${fmtUSD(s.spy_spot)}</b> as of <b>${s.asof}</b> · read-only, you place every trade.`;
+        const td = document.getElementById('today-date');
+        if (td) td.textContent = new Date(s.asof + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
       }).catch(() => { });
     }
     loadStatus();
@@ -2865,6 +3034,106 @@
         .catch(e => { if (title) title.textContent = '' + e.message; })
         .finally(() => { btRun.textContent = 'Run backtest'; btRun.disabled = false; });
     });
+
+    // ===== Today home: live index strip + sector breadth + cockpit =====
+    const tvTheme = () => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    function tvMini(id, symbol) {
+      const c = document.getElementById(id);
+      if (!c) return;
+      c.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.className = 'tradingview-widget-container'; wrap.style.height = '100%';
+      const w = document.createElement('div');
+      w.className = 'tradingview-widget-container__widget'; w.style.height = '100%';
+      wrap.appendChild(w);
+      const s = document.createElement('script');
+      s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+      s.async = true;
+      s.textContent = JSON.stringify({ symbol, width: '100%', height: '100%', locale: 'en', dateRange: '1D', colorTheme: tvTheme(), isTransparent: true, autosize: true, noTimeScale: true });
+      wrap.appendChild(s);
+      c.appendChild(wrap);
+    }
+    let idxDrawn = false;
+    function initIndexStrip(force) {
+      if (idxDrawn && !force) return; idxDrawn = true;
+      tvMini('idx-dow', 'AMEX:DIA');
+      tvMini('idx-nasdaq', 'NASDAQ:QQQ');
+      tvMini('idx-sp', 'AMEX:SPY');
+      tvMini('idx-russell', 'AMEX:IWM');
+    }
+
+    function breadthBar(up, dn, upW, dnW, upTxt, dnTxt) {
+      return `<div class="brow">
+        <div class="blabels"><span class="up">${up}</span><span class="dn">${dn}</span></div>
+        <div class="bbar"><i class="up" style="width:${upW}%"></i><i class="dn" style="width:${dnW}%"></i></div>
+        <div class="bvals"><span>${upTxt}</span><span>${dnTxt}</span></div>
+      </div>`;
+    }
+    function renderBreadth(d) {
+      flipLive();
+      window.__lastBreadth = d;
+      const el = document.getElementById('breadth');
+      if (!el) return;
+      if (!d || !d.n) { el.innerHTML = '<span class="softtext">No breadth data available.</span>'; return; }
+      const a = d.advancing, dec = d.declining, nh = d.new_high, nl = d.new_low, s50 = d.above_sma50, s200 = d.above_sma200;
+      const ext = nh.count + nl.count;
+      const nhW = ext ? +(nh.count / ext * 100).toFixed(1) : 0, nlW = ext ? +(100 - nhW).toFixed(1) : 0;
+      const b50 = +(100 - s50.pct).toFixed(1), b200 = +(100 - s200.pct).toFixed(1);
+      el.innerHTML =
+        breadthBar('Advancing', 'Declining', a.pct, dec.pct, `${a.pct}% (${a.count})`, `(${dec.count}) ${dec.pct}%`) +
+        breadthBar('New high', 'New low', nhW, nlW, `${nh.count} at 52-wk high`, `${nl.count} at 52-wk low`) +
+        breadthBar('Above SMA50', 'Below SMA50', s50.pct, b50, `${s50.pct}% (${s50.count})`, `(${s50.of - s50.count}) ${b50}%`) +
+        breadthBar('Above SMA200', 'Below SMA200', s200.pct, b200, `${s200.pct}% (${s200.count})`, `(${s200.of - s200.count}) ${b200}%`) +
+        `<div class="bullbear"><span class="lbl" style="color:var(--green)">BULL ${d.bull_pct}%</span>
+           <span class="gauge"><i style="width:${d.bull_pct}%;background:var(--green)"></i><i style="width:${d.bear_pct}%;background:var(--red)"></i></span>
+           <span class="lbl" style="color:var(--red)">${d.bear_pct}% BEAR</span></div>`;
+    }
+    let marketLoaded = false;
+    function loadMarket(force) {
+      if (marketLoaded && !force) return;
+      fetch('/api/market').then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(d => { marketLoaded = true; renderBreadth(d); }).catch(() => { });
+    }
+
+    const setTxt = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+    let todayLoaded = false;
+    function loadToday(force) {
+      initIndexStrip(force);
+      loadMarket(force);
+      if (todayLoaded && !force) return; todayLoaded = true;
+      fetch('/api/scan').then(r => r.json()).then(d => {
+        flipLive();
+        const q = d.results.filter(r => r.qualifies).length;
+        setTxt('ck-scan', d.master_gate_pass ? `${q} qualify` : 'Gate closed');
+        setTxt('ck-scan-sub', `master gate ${d.master_gate_pass ? 'open' : 'closed'} · ${d.playbook} →`);
+      }).catch(() => { });
+      fetch('/api/analytics').then(r => r.json()).then(d => {
+        setTxt('ck-gate', d.scaling_gate.green ? 'Green — scale OK' : 'Hold size');
+        setTxt('ck-gate-sub', `adherence ${d.avg_adherence.toFixed(0)}% · ${d.n_trades} closed →`);
+      }).catch(() => { });
+      fetch('/api/journal/trades').then(r => r.json()).then(d => {
+        let maxloss = 0;
+        d.open.forEach(t => { if (t.short_strike && t.long_strike) maxloss += (Math.abs(t.short_strike - t.long_strike) - (t.credit_debit || 0)) * 100; });
+        setTxt('ck-pos', `${d.open.length} open`);
+        setTxt('ck-pos-sub', d.open.length ? `~${fmtUSD(maxloss)} max loss at risk →` : 'no open positions →');
+      }).catch(() => { });
+      // event radar — next FOMC (mirrors core/calendar 2026)
+      const fomc = ['2026-01-28', '2026-03-18', '2026-04-29', '2026-06-17', '2026-07-29', '2026-09-16', '2026-10-28', '2026-12-09'];
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      const next = fomc.map(s => new Date(s + 'T00:00:00')).find(dt => dt >= now);
+      if (next) {
+        const days = Math.round((next - now) / 86400000);
+        setTxt('ck-event', days === 0 ? 'FOMC today' : `FOMC in ${days}d`);
+        setTxt('ck-event-sub', `${next.toISOString().slice(0, 10)} · don't span expiries across it`);
+      }
+    }
+    document.querySelectorAll('.nav a[data-view="today"]').forEach(a => a.addEventListener('click', () => loadToday(false)));
+    // cockpit cards deep-link into their tab
+    document.querySelectorAll('a.card.cockpit').forEach(c => c.addEventListener('click', () => {
+      const link = document.querySelector('.nav a[data-view="' + c.dataset.view + '"]');
+      if (link) link.click();
+    }));
+    loadToday(false);  // Today is the default view
   </script>
 </body>
 

@@ -34,11 +34,15 @@ def detect_support(
 
     Method: swing lows (a low strictly lower than `wing` bars on each side)
     within the last `lookback` bars are clustered when within `cluster_tol`
-    (fractional) of each other. The cluster with the most touches (ties -> the
-    higher level) wins, if it has >= min_touches and sits below the last close.
-    Returns the cluster's mean level, or None.
+    (fractional) of the cluster's lowest level. The cluster with the most
+    touches (ties -> the higher level) wins, if it has >= min_touches and sits
+    below the last close. Returns the cluster's mean level, or None.
+    Note: the last `wing` bars can never qualify as swing lows (no right-side
+    confirmation yet).
     """
     window = bars.tail(lookback)
+    if len(window) == 0:
+        return None
     lows = window["low"].to_numpy()
     last_close = float(window["close"].iloc[-1])
 

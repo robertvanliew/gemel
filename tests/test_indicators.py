@@ -29,9 +29,9 @@ def test_rsi_all_gains_is_100():
 
 
 def test_rsi_hand_computed_period2():
-    # closes [10,11,10,11] -> deltas [1,-1,1]
-    # Wilder smoothing alpha=1/2, adjust=False:
-    #   gains  [1,0,1] -> 1, .5, .75 ; losses [0,1,0] -> 0, .5, .25
+    # closes [10,11,10,11] -> deltas [NaN,1,-1,1]
+    # Wilder smoothing alpha=1/2, adjust=False (NaN-seeded, recursion starts at index 1):
+    #   gains  [NaN,1,0,1] -> NaN, 1, .5, .75 ; losses [NaN,0,1,0] -> NaN, 0, .5, .25
     # RS = .75/.25 = 3 -> RSI = 100 - 100/(1+3) = 75
     s = pd.Series([10.0, 11.0, 10.0, 11.0])
     assert rsi(s, 2).iloc[-1] == pytest.approx(75.0)
@@ -70,3 +70,13 @@ def test_detect_support_none_when_no_swing_lows():
     # strictly rising lows -> a single swing low at best, below min_touches
     bars = pd.DataFrame({"low": np.linspace(100, 130, 30), "close": np.linspace(100.5, 130.5, 30)})
     assert detect_support(bars, lookback=30) is None
+
+
+def test_detect_support_empty_bars_returns_none():
+    bars = pd.DataFrame({"low": [], "close": []})
+    assert detect_support(bars, lookback=30) is None
+
+
+def test_rsi_all_losses_is_0():
+    s = pd.Series([float(x) for x in range(39, 0, -1)])
+    assert rsi(s, 14).iloc[-1] == pytest.approx(0.0)

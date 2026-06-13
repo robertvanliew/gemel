@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from analytics.service import compute_analytics
+from backtester.engine import run_backtest
 from core.data.factory import make_adapter
 from core.db import init_db, make_engine
 from journal import service as journal
@@ -47,12 +48,44 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/api/status")
+def status() -> dict:
+    """Lightweight liveness probe for the UI's LIVE bar: which data source is
+    active and the latest SPY close it can see right now."""
+    adapter = make_adapter()
+    bars = adapter.get_daily_bars("SPY", lookback_days=5)
+    return {
+        "source": type(adapter.source).__name__.replace("Adapter", "").lower(),
+        "asof": bars.index[-1].date().isoformat(),
+        "spy_spot": round(float(bars["close"].iloc[-1]), 2),
+    }
+
+
 # ---------- scanner ----------
 @app.get("/api/scan")
 def scan() -> JSONResponse:
     """Run the weekly ETF scan on live data and return the report."""
     adapter = make_adapter()
     return JSONResponse(run_scan(adapter, today=date.today()))
+
+
+# ---------- backtester ----------
+@app.get("/api/backtest")
+def backtest(ticker: str = "SPY", strategy: str = "bull_put_spread",
+             dte: int = 38, delta: float = 0.18,
+             start: str | None = None, end: str | None = None) -> JSONResponse:
+    """Run an options backtest on real history (BS + historical VIX IV proxy).
+
+    Defaults to the last ~8 years through today; the sensitivity grid re-simulates
+    across delta x DTE, so this is the slowest endpoint (several seconds)."""
+    try:
+        s = date.fromisoformat(start) if start else date(date.today().year - 8, 1, 1)
+        e = date.fromisoformat(end) if end else date.today()
+        result = run_backtest(adapter := make_adapter(), ticker=ticker, strategy=strategy,
+                              start=s, end=e, dte=dte, target_delta=delta)
+    except ValueError as ex:
+        raise HTTPException(status_code=422, detail=str(ex))
+    return JSONResponse(result)
 
 
 # ---------- journal ----------

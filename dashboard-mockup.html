@@ -14,7 +14,6 @@
     href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Newsreader:opsz,wght@6..72,500&display=swap"
     rel="stylesheet">
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-  <script src="https://s3.tradingview.com/tv.js"></script>
   <style>
     :root {
       /* Base style system — white canvas, rationed electric-blue, flat surfaces.
@@ -1014,8 +1013,31 @@
       margin-bottom: 4px
     }
 
-    .tvmini {
-      height: 92px
+    .idxmini {
+      min-height: 78px
+    }
+
+    .idxquote {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .idxlast {
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -.02em
+    }
+
+    .idxchg {
+      font-size: 12px;
+      font-weight: 500
+    }
+
+    .idxspark {
+      height: 46px;
+      margin-top: 4px
     }
 
     /* breadth split bars */
@@ -1162,12 +1184,12 @@
           <div class="sub" id="today-date">—</div>
         </div>
 
-        <!-- live index strip (TradingView) -->
+        <!-- live index strip (Gemel-native sparklines) -->
         <div class="idxstrip">
-          <div class="idxcard"><div class="idxname">Dow Jones</div><div class="tvmini" id="idx-dow"></div></div>
-          <div class="idxcard"><div class="idxname">Nasdaq 100</div><div class="tvmini" id="idx-nasdaq"></div></div>
-          <div class="idxcard"><div class="idxname">S&amp;P 500</div><div class="tvmini" id="idx-sp"></div></div>
-          <div class="idxcard"><div class="idxname">Russell 2000</div><div class="tvmini" id="idx-russell"></div></div>
+          <div class="idxcard"><div class="idxname">Dow Jones</div><div class="idxmini" id="idx-dow"></div></div>
+          <div class="idxcard"><div class="idxname">Nasdaq 100</div><div class="idxmini" id="idx-nasdaq"></div></div>
+          <div class="idxcard"><div class="idxname">S&amp;P 500</div><div class="idxmini" id="idx-sp"></div></div>
+          <div class="idxcard"><div class="idxname">Russell 2000</div><div class="idxmini" id="idx-russell"></div></div>
         </div>
 
         <!-- sector breadth -->
@@ -1695,8 +1717,18 @@
           this week: <b style="color:var(--green)">bull put credit spreads</b>.</div>
 
         <div class="panel">
-          <h3>SPY — live chart <span class="muted" style="font-weight:400">— TradingView · candles, EMA, volume, drawing tools</span></h3>
-          <div id="tv_chart" style="height:440px"></div>
+          <h3 style="justify-content:space-between">
+            <span>Live chart <span class="muted" style="font-weight:400">— candles, EMA 20/50, volume · use the toolbar to draw</span></span>
+            <select id="mkt-symbol" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:6px 10px;font-size:13px;font-weight:400">
+              <option>SPY</option>
+              <option>QQQ</option>
+              <option>IWM</option>
+              <option>GLD</option>
+              <option>XLK</option>
+              <option>XLV</option>
+            </select>
+          </h3>
+          <div id="market-spy" class="skel" style="height:440px"></div>
         </div>
 
         <div class="panel">
@@ -2582,25 +2614,52 @@
       }], { ...dark, margin: { l: 60, r: 14, t: 10, b: 30 } }, cfg);
     }
 
-    // ===== Scanner: TradingView live chart (real candles/EMA/volume/drawing) =====
-    function initTradingView() {
-      const el = document.getElementById('tv_chart');
-      if (!el || !window.TradingView) return;
-      el.innerHTML = '';
-      new TradingView.widget({
-        container_id: 'tv_chart',
-        autosize: true,
-        symbol: 'AMEX:SPY',
-        interval: 'D',
-        timezone: 'America/New_York',
-        theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
-        style: '1',
-        locale: 'en',
-        hide_side_toolbar: false,
-        allow_symbol_change: true,
-        studies: ['MAExp@tv-basicstudies'],   // EMA overlay; chart is fully interactive for more
-      });
+    // ===== Scanner: Gemel-native live chart — real candles, EMA, volume, drawing tools =====
+    const emaArr = (arr, n) => { const k = 2 / (n + 1), out = [arr[0]]; for (let i = 1; i < arr.length; i++) out.push(arr[i] * k + out[i - 1] * (1 - k)); return out; };
+    let mktTicker = 'SPY';
+    function drawMarketChart(ticker) {
+      mktTicker = ticker;
+      const el = document.getElementById('market-spy');
+      if (!el) return;
+      el.classList.add('skel');
+      fetch('/api/ohlc?ticker=' + encodeURIComponent(ticker) + '&days=180')
+        .then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(d => {
+          flipLive();
+          const up = cssv('--green'), dn = cssv('--red');
+          const e20 = emaArr(d.close, 20), e50 = emaArr(d.close, 50);
+          const volColors = d.close.map((c, i) => c >= d.open[i] ? up : dn);
+          Plotly.react(el, [
+            {
+              x: d.dates, open: d.open, high: d.high, low: d.low, close: d.close, type: 'candlestick', name: d.ticker,
+              increasing: { line: { color: up, width: 1 }, fillcolor: up }, decreasing: { line: { color: dn, width: 1 }, fillcolor: dn },
+              whiskerwidth: .4, yaxis: 'y'
+            },
+            { x: d.dates, y: e20, type: 'scatter', mode: 'lines', name: 'EMA 20', line: { color: cssv('--accent'), width: 1.4 } },
+            { x: d.dates, y: e50, type: 'scatter', mode: 'lines', name: 'EMA 50', line: { color: cssv('--amber'), width: 1.6 } },
+            { x: d.dates, y: d.volume, type: 'bar', name: 'Vol', yaxis: 'y2', marker: { color: volColors, opacity: .4 }, hoverinfo: 'skip' }
+          ], {
+            ...dark, margin: { l: 50, r: 14, t: 28, b: 28 }, dragmode: 'pan', hovermode: 'x unified',
+            showlegend: true, legend: { orientation: 'h', y: 1.08, font: { size: 10 } },
+            xaxis: {
+              gridcolor: cssv('--grid'), rangeslider: { visible: false }, showspikes: true, spikemode: 'across', spikethickness: 1, spikecolor: cssv('--muted'), spikedash: 'dot',
+              rangeselector: {
+                bgcolor: cssv('--panel2'), activecolor: cssv('--accent'), bordercolor: cssv('--line'), borderwidth: 1, font: { color: cssv('--ink'), size: 10 },
+                buttons: [{ count: 1, label: '1M', step: 'month', stepmode: 'backward' }, { count: 3, label: '3M', step: 'month', stepmode: 'backward' }, { count: 6, label: '6M', step: 'month', stepmode: 'backward' }, { step: 'all', label: 'ALL' }]
+              }
+            },
+            yaxis: { gridcolor: cssv('--grid'), domain: [0.26, 1], tickprefix: '$' },
+            yaxis2: { gridcolor: 'rgba(0,0,0,0)', domain: [0, 0.2], showticklabels: false },
+            newshape: { line: { color: cssv('--accent'), width: 2 } }
+          }, {
+            ...cfg, displayModeBar: true, displaylogo: false, scrollZoom: true,
+            modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'drawrect', 'eraseshape'],
+            modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d']
+          }).then(() => el.classList.remove('skel'));
+        }).catch(() => { el.classList.remove('skel'); });
     }
+    const mktSel = document.getElementById('mkt-symbol');
+    if (mktSel) mktSel.addEventListener('change', () => drawMarketChart(mktSel.value));
 
     // Finviz-style universe heatmap: one tile per ETF, shaded by RSI momentum
     function renderHeatmap(results) {
@@ -2625,7 +2684,7 @@
     let sDrawn = false;
     function drawScanner() {
       if (sDrawn) return; sDrawn = true;
-      initTradingView();
+      drawMarketChart(mktSel ? mktSel.value : 'SPY');
       if (window.__lastScan) renderHeatmap(window.__lastScan.results);
     }
 
@@ -3035,31 +3094,33 @@
         .finally(() => { btRun.textContent = 'Run backtest'; btRun.disabled = false; });
     });
 
-    // ===== Today home: live index strip + sector breadth + cockpit =====
-    const tvTheme = () => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-    function tvMini(id, symbol) {
+    // ===== Today home: native index sparklines + sector breadth + cockpit =====
+    function renderIndexCard(id, ticker) {
       const c = document.getElementById(id);
       if (!c) return;
-      c.innerHTML = '';
-      const wrap = document.createElement('div');
-      wrap.className = 'tradingview-widget-container'; wrap.style.height = '100%';
-      const w = document.createElement('div');
-      w.className = 'tradingview-widget-container__widget'; w.style.height = '100%';
-      wrap.appendChild(w);
-      const s = document.createElement('script');
-      s.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-      s.async = true;
-      s.textContent = JSON.stringify({ symbol, width: '100%', height: '100%', locale: 'en', dateRange: '1D', colorTheme: tvTheme(), isTransparent: true, autosize: true, noTimeScale: true });
-      wrap.appendChild(s);
-      c.appendChild(wrap);
+      fetch('/api/ohlc?ticker=' + ticker + '&days=40').then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+        flipLive();
+        const last = d.close[d.close.length - 1], prev = d.close[d.close.length - 2];
+        const chg = last - prev, pct = prev ? chg / prev * 100 : 0, upd = chg >= 0, col = upd ? cssv('--green') : cssv('--red');
+        c.innerHTML = `<div class="idxquote"><span class="idxlast">${last.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span class="idxchg" style="color:${col}">${upd ? '+' : ''}${chg.toFixed(2)} (${upd ? '+' : ''}${pct.toFixed(2)}%)</span></div>
+          <div class="idxspark" id="${id}-spark"></div>`;
+        Plotly.newPlot(id + '-spark', [{
+          x: d.dates, y: d.close, type: 'scatter', mode: 'lines', line: { color: col, width: 1.5 },
+          fill: 'tozeroy', fillcolor: upd ? 'rgba(9,133,81,.08)' : 'rgba(192,57,43,.08)', hoverinfo: 'skip'
+        }], {
+          paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 0, r: 0, t: 0, b: 0 },
+          xaxis: { visible: false }, yaxis: { visible: false, range: [Math.min(...d.close), Math.max(...d.close)] }
+        }, { displayModeBar: false, responsive: true, staticPlot: true });
+      }).catch(() => { });
     }
     let idxDrawn = false;
     function initIndexStrip(force) {
       if (idxDrawn && !force) return; idxDrawn = true;
-      tvMini('idx-dow', 'AMEX:DIA');
-      tvMini('idx-nasdaq', 'NASDAQ:QQQ');
-      tvMini('idx-sp', 'AMEX:SPY');
-      tvMini('idx-russell', 'AMEX:IWM');
+      renderIndexCard('idx-dow', 'DIA');
+      renderIndexCard('idx-nasdaq', 'QQQ');
+      renderIndexCard('idx-sp', 'SPY');
+      renderIndexCard('idx-russell', 'IWM');
     }
 
     function breadthBar(up, dn, upW, dnW, upTxt, dnTxt) {

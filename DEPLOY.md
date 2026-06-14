@@ -12,13 +12,48 @@ journal survives restarts, you need a platform with a **persistent volume**.
 > filesystem and **cannot attach a disk**, so your journal would reset on every
 > restart. Render works only on a *paid* instance with a disk.
 
-The app reads `DATA_DIR` and stores `gemel.db` there. Point it at a mounted volume
-and your trades persist. No secrets are required — it defaults to **yfinance** (no
-API key). Set Alpaca keys only if you prefer that data source.
+The journal can live in one of two places:
+
+- **Postgres** — set `DATABASE_URL` and the server is stateless, so it runs on a
+  **free** host (Render free tier + a free Neon database). This is Option A.
+- **SQLite on a mounted volume** — set `DATA_DIR`; needs a paid host with a disk
+  (Railway/Render paid). This is Option B.
+
+No market-data key is required — it defaults to **yfinance**. Set Alpaca keys only
+if you prefer that source (more reliable from a datacenter IP).
 
 ---
 
-## Option A — Railway (recommended, ~$5/mo)
+## Option A — Free: Render (free web service) + Neon (free Postgres)
+
+Zero cost. The web service sleeps after ~15 min idle and takes ~1 min to wake on
+the next visit, then it's fast — fine for a personal tool.
+
+### 1. Create the free Postgres (Neon)
+1. Sign up at **neon.tech** (free tier, no card).
+2. Create a project → it gives you a **connection string** that looks like
+   `postgresql://user:pass@ep-xxxx.neon.tech/dbname?sslmode=require`.
+3. Copy it — that's your `DATABASE_URL`. (The app rewrites it to use the psycopg3
+   driver automatically; just paste it as-is.)
+
+### 2. Create the free web service (Render)
+1. Sign in at **render.com** with GitHub.
+2. **New → Web Service →** connect `robertvanliew/gemel`.
+   - Render reads `render.yaml`/`Dockerfile`. Runtime **Docker**, plan **Free**.
+3. **Environment →** add one variable:
+   - `DATABASE_URL` = *(the Neon string from step 1)*
+   - *(optional)* `ACCOUNT_SIZE = 35000`, or `DATA_SOURCE=alpaca` + Alpaca keys
+4. **Create Web Service.** First build takes a few minutes (installing pandas/
+   numpy). When it's live you get an `https://gemel-xxxx.onrender.com` URL.
+5. Open it — the LIVE bar turns green once data loads. Trades now save to Neon and
+   persist across restarts/redeploys. Every `git push` auto-deploys.
+
+> No persistent disk is involved here, so Render's free tier is fine — the journal
+> lives in Neon, not on the server's filesystem.
+
+---
+
+## Option B — Railway (~$5/mo, always-on, SQLite on a volume)
 
 Railway's Hobby plan is $5/mo and includes $5 of usage credit; a 1 GB volume for
 the journal costs only a few cents on top, well inside the credit.
@@ -39,7 +74,7 @@ the journal costs only a few cents on top, well inside the credit.
 
 Redeploys on every `git push` to `master` are automatic.
 
-## Option B — Render (paid instance required for persistence)
+## Option C — Render paid (always-on, SQLite on a disk)
 
 1. **render.com → New → Web Service →** connect `robertvanliew/gemel`.
 2. Runtime **Docker** (it reads the `Dockerfile`).
@@ -48,7 +83,7 @@ Redeploys on every `git push` to `master` are automatic.
 5. **Environment →** add `DATA_DIR = /data`.
 6. Create the service; Render gives you an `*.onrender.com` URL.
 
-## Option C — Fly.io
+## Option D — Fly.io
 
 `fly launch` (detects the Dockerfile) → `fly volumes create gemel_data --size 1`
 → in `fly.toml` add a `[mounts]` entry `source = "gemel_data"`,
@@ -58,12 +93,10 @@ Redeploys on every `git push` to `master` are automatic.
 
 ## Notes
 
-- **A truly-free, persistent setup** is possible by swapping SQLite for a free
-  managed Postgres (e.g. Neon/Supabase) and running the web service on a free
-  tier — but that's extra wiring. Ask if you want that path.
+- **Postgres vs SQLite:** when `DATABASE_URL` is set the app uses Postgres and
+  ignores `DATA_DIR`; otherwise it uses a local SQLite file. Locally (and in the
+  tests) nothing changes — no `DATABASE_URL`, plain SQLite.
 - **yfinance from a datacenter IP** is occasionally rate-limited by Yahoo. If the
   hosted app shows stale/empty data, switch `DATA_SOURCE` to `alpaca` with keys.
-- **Delete the failed Vercel project** so it stops trying (and failing) to build
-  on every push.
-- The journal on the server is separate from any local `gemel.db` you run via
-  `run.bat`. There is no login — treat the public URL as semi-private.
+- The hosted journal is separate from any local `gemel.db` you run via `run.bat`.
+  There is no login — treat the public URL as semi-private.

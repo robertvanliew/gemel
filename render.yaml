@@ -1,0 +1,11 @@
+# Render Blueprint — free, stateless web service running the Docker image.
+# The journal lives in a separate free Postgres (e.g. Neon); paste its
+# connection string into the DATABASE_URL env var in the Render dashboard.
+services:
+  - type: web
+    name: gemel
+    runtime: docker
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # set manually with your Neon connection string

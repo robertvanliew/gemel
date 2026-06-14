@@ -6,6 +6,7 @@ numpy>=2.4
 pyarrow>=17
 # storage
 sqlmodel>=0.0.22
+psycopg[binary]>=3.2          # Postgres driver — used only when DATABASE_URL is set (hosted deploys)
 # web (used from Phase 2 on, pinned now so the env is stable)
 fastapi>=0.115
 uvicorn[standard]>=0.32

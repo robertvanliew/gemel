@@ -33,12 +33,27 @@ MAX_LOSS_CAP_PCT = 0.02
 
 app = FastAPI(title="Gemel", docs_url=None, redoc_url=None)
 
-# Journal DB (gemel.db), created on first launch. Locally it lives next to the
-# code; in a hosted deploy set DATA_DIR to a mounted persistent volume (e.g.
-# /data) so saved trades survive restarts and redeploys.
-DATA_DIR = Path(os.getenv("DATA_DIR", ROOT))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-_engine = make_engine(f"sqlite:///{(DATA_DIR / 'gemel.db').as_posix()}")
+# Journal storage. Two modes:
+#   • DATABASE_URL set  -> hosted Postgres (e.g. Neon free tier). Lets the web
+#     server stay stateless, so it can run on a free/ephemeral host.
+#   • otherwise         -> local SQLite at DATA_DIR (a mounted volume in a
+#     container, or next to the code locally). This is the default.
+def _resolve_db_url() -> str:
+    url = os.getenv("DATABASE_URL")
+    if url:
+        # SQLAlchemy needs the psycopg3 driver named explicitly; Neon/Heroku
+        # hand out bare postgres:// or postgresql:// URLs.
+        if url.startswith("postgres://"):
+            return "postgresql+psycopg://" + url[len("postgres://"):]
+        if url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + url[len("postgresql://"):]
+        return url
+    data_dir = Path(os.getenv("DATA_DIR", ROOT))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{(data_dir / 'gemel.db').as_posix()}"
+
+
+_engine = make_engine(_resolve_db_url())
 init_db(_engine)
 
 

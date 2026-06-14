@@ -102,7 +102,12 @@ class ScanResult(SQLModel, table=True):
 
 
 def make_engine(url: str = "sqlite:///data/trading.sqlite"):
-    return create_engine(url, connect_args={"check_same_thread": False})
+    if url.startswith("sqlite"):
+        # check_same_thread=False lets the threaded web server share the connection.
+        return create_engine(url, connect_args={"check_same_thread": False})
+    # Postgres (hosted deploys): pre-ping recycles connections that serverless
+    # databases (e.g. Neon) drop when they scale to zero.
+    return create_engine(url, pool_pre_ping=True)
 
 
 def init_db(engine) -> None:

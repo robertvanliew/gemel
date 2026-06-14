@@ -33,8 +33,12 @@ MAX_LOSS_CAP_PCT = 0.02
 
 app = FastAPI(title="Gemel", docs_url=None, redoc_url=None)
 
-# Local journal DB (gemel.db). Created on first launch.
-_engine = make_engine(f"sqlite:///{(ROOT / 'gemel.db').as_posix()}")
+# Journal DB (gemel.db), created on first launch. Locally it lives next to the
+# code; in a hosted deploy set DATA_DIR to a mounted persistent volume (e.g.
+# /data) so saved trades survive restarts and redeploys.
+DATA_DIR = Path(os.getenv("DATA_DIR", ROOT))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+_engine = make_engine(f"sqlite:///{(DATA_DIR / 'gemel.db').as_posix()}")
 init_db(_engine)
 
 

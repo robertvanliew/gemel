@@ -2125,12 +2125,19 @@
             </select>
           </h3>
           <div class="chartbar">
-            <div class="tfbar" id="mkt-tf">
-              <button class="tfbtn" data-tf="1">1M</button>
-              <button class="tfbtn" data-tf="3">3M</button>
-              <button class="tfbtn active" data-tf="6">6M</button>
-              <button class="tfbtn" data-tf="12">1Y</button>
-              <button class="tfbtn" data-tf="all">All</button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <div class="tfbar" id="mkt-tf">
+                <button class="tfbtn" data-tf="1">1M</button>
+                <button class="tfbtn" data-tf="3">3M</button>
+                <button class="tfbtn active" data-tf="6">6M</button>
+                <button class="tfbtn" data-tf="12">1Y</button>
+                <button class="tfbtn" data-tf="all">All</button>
+              </div>
+              <select id="mkt-interval" title="Candle interval — daily or weekly bars"
+                style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:7px 10px;font-size:12px;font-weight:500;cursor:pointer">
+                <option value="D">Daily</option>
+                <option value="W">Weekly</option>
+              </select>
             </div>
             <div class="tgroup">
               <button class="tbtn" id="mkt-reset" title="Reset view"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v6h-6" /></svg></button>
@@ -3089,12 +3096,28 @@
     function bollinger(a, n, k) { const mid = smaArr(a, n), upp = [], low = []; for (let i = 0; i < a.length; i++) { if (i >= n - 1) { let s = 0; for (let j = i - n + 1; j <= i; j++) s += (a[j] - mid[i]) ** 2; const sd = Math.sqrt(s / n); upp.push(mid[i] + k * sd); low.push(mid[i] - k * sd); } else { upp.push(null); low.push(null); } } return { mid, upp, low }; }
     function rsiArr(a, n) { const out = [null]; let g = 0, l = 0; for (let i = 1; i < a.length; i++) { const ch = a[i] - a[i - 1], u = Math.max(ch, 0), w = Math.max(-ch, 0); if (i <= n) { g += u; l += w; out.push(i === n ? 100 - 100 / (1 + (l === 0 ? 1e9 : g / l)) : null); if (i === n) { g /= n; l /= n; } } else { g = (g * (n - 1) + u) / n; l = (l * (n - 1) + w) / n; out.push(l === 0 ? 100 : 100 - 100 / (1 + g / l)); } } return out; }
 
-    const mktState = { type: 'candles', ema: true, boll: false, rsi: false, drag: 'pan' };
+    const mktState = { type: 'candles', ema: true, boll: false, rsi: false, drag: 'pan', interval: 'D' };
     let armHline = false;
     const activeTfBtn = () => document.querySelector('#mkt-tf .tfbtn.active') || document.querySelector('#mkt-tf .tfbtn[data-tf="6"]');
 
+    // Aggregate daily bars into weekly candles (week = Mon–Fri; open=first, high=max,
+    // low=min, close=last, volume=sum), labelled by the week's first trading day.
+    function weekKey(s) { const dt = new Date(s + 'T00:00:00'); const off = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - off); return dt.toISOString().slice(0, 10); }
+    function resampleWeekly(d) {
+      const o = { ticker: d.ticker, dates: [], open: [], high: [], low: [], close: [], volume: [] };
+      let key = null;
+      for (let i = 0; i < d.dates.length; i++) {
+        const k = weekKey(d.dates[i]);
+        if (k !== key) { o.dates.push(d.dates[i]); o.open.push(d.open[i]); o.high.push(d.high[i]); o.low.push(d.low[i]); o.close.push(d.close[i]); o.volume.push(d.volume[i]); key = k; }
+        else { const j = o.dates.length - 1; o.high[j] = Math.max(o.high[j], d.high[i]); o.low[j] = Math.min(o.low[j], d.low[i]); o.close[j] = d.close[i]; o.volume[j] += d.volume[i]; }
+      }
+      return o;
+    }
+    // Bars currently on display, honoring the interval dropdown (weekly is cached per symbol).
+    function mktBars() { const d = window.__mkt; if (!d) return null; return mktState.interval === 'W' ? (window.__mktW || (window.__mktW = resampleWeekly(d))) : d; }
+
     function renderMarket() {
-      const d = window.__mkt; if (!d) return;
+      const d = mktBars(); if (!d) return;
       const el = document.getElementById('market-spy');
       const up = cssv('--green'), dn = cssv('--red'), acc = cssv('--accent'), amb = cssv('--amber'), mut = cssv('--muted');
       const traces = [];
@@ -3138,7 +3161,7 @@
           el.on('plotly_relayout', () => { window.__mktShapes = (el.layout.shapes || []).slice(); });
           el.on('plotly_click', ev => {
             if (!armHline || !ev.points || !ev.points[0]) return;
-            const p = ev.points[0], price = (p.low != null ? p.low : (p.y != null ? p.y : p.close)), dd = window.__mkt;
+            const p = ev.points[0], price = (p.low != null ? p.low : (p.y != null ? p.y : p.close)), dd = mktBars();
             window.__mktShapes = (el.layout.shapes || []).concat([{ type: 'line', x0: dd.dates[0], x1: dd.dates[dd.dates.length - 1], y0: price, y1: price, line: { color: cssv('--accent'), width: 1.5, dash: 'dash' } }]);
             armHline = false; setDraw('pan'); Plotly.relayout(el, { shapes: window.__mktShapes });
           });
@@ -3151,6 +3174,7 @@
       const el = document.getElementById('market-spy'); if (!el) return;
       el.classList.add('skel');
       window.__mktShapes = [];   // a fresh symbol starts with no drawings
+      window.__mktW = null;      // invalidate the weekly cache for the new symbol
       fetch('/api/ohlc?ticker=' + encodeURIComponent(ticker) + '&days=380')
         .then(r => { if (!r.ok) throw 0; return r.json(); })
         .then(d => { flipLive(); window.__mkt = d; renderMarket(); })
@@ -3159,7 +3183,7 @@
 
     // timeframe sets the x window AND rescales price+volume to it (what Plotly's built-ins don't do)
     function applyTimeframe(btn) {
-      const d = window.__mkt; if (!btn || !d || !d.dates.length) return;
+      const d = mktBars(); if (!btn || !d || !d.dates.length) return;
       document.querySelectorAll('#mkt-tf .tfbtn').forEach(b => b.classList.toggle('active', b === btn));
       const tf = btn.dataset.tf, end = d.dates[d.dates.length - 1];
       let start; if (tf === 'all') start = d.dates[0]; else { const s = new Date(end + 'T00:00:00'); s.setMonth(s.getMonth() - (+tf)); start = s.toISOString().slice(0, 10); }
@@ -3179,6 +3203,7 @@
     document.querySelectorAll('#mkt-draw .tbtn[data-draw]').forEach(b => b.addEventListener('click', () => setDraw(b.dataset.draw)));
     document.querySelectorAll('#mkt-ind .tbtn[data-ind]').forEach(b => b.addEventListener('click', () => { const k = b.dataset.ind; mktState[k] = !mktState[k]; b.classList.toggle('active', mktState[k]); renderMarket(); }));
     document.querySelectorAll('#mkt-type .tbtn[data-type]').forEach(b => b.addEventListener('click', () => { mktState.type = b.dataset.type; document.querySelectorAll('#mkt-type .tbtn').forEach(x => x.classList.toggle('active', x === b)); renderMarket(); }));
+    const _mi = document.getElementById('mkt-interval'); if (_mi) _mi.addEventListener('change', () => { mktState.interval = _mi.value; renderMarket(); });
     const _mc = document.getElementById('mkt-clear'); if (_mc) _mc.addEventListener('click', () => { window.__mktShapes = []; Plotly.relayout('market-spy', { shapes: [] }); });
     const _mr = document.getElementById('mkt-reset'); if (_mr) _mr.addEventListener('click', () => applyTimeframe(activeTfBtn()));
     const _md = document.getElementById('mkt-dl'); if (_md) _md.addEventListener('click', () => Plotly.downloadImage('market-spy', { format: 'png', filename: 'gemel-' + mktTicker, width: 1400, height: 700 }));

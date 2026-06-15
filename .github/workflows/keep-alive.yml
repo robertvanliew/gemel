@@ -1,0 +1,17 @@
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping GEMEL
+        run: |
+          echo "Pinging GEMEL to keep it awake…"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
+            https://gemel-3ib3.onrender.com/api/health || echo "000")
+          echo "HTTP status: $code"

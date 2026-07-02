@@ -104,6 +104,88 @@ def _stats(trades: list) -> dict:
     )
 
 
+def _pf_txt(pf: float) -> str:
+    """Human profit-factor string; 999.0 is the 'no losing trades' sentinel."""
+    return "∞" if pf >= 999.0 else f"{pf:.2f}"
+
+
+def deploy_gate(
+    is_stats: dict,
+    oos_stats: dict,
+    *,
+    min_oos_pf: float = 1.3,
+    max_degradation: float = 0.30,
+    min_oos_trades: int = 20,
+) -> dict:
+    """A blunt GO / NO-GO verdict: would this playbook clear the bar to trade?
+
+    Judged ONLY on the held-out out-of-sample slice, so it can't be curve-fit:
+      1. enough out-of-sample trades to trust the number,
+      2. out-of-sample profit factor clears the floor, and
+      3. it didn't fall apart vs in-sample (degradation within tolerance).
+
+    Read-only discipline — a pass means 'worth paper-trading', never advice to
+    place an order.
+    """
+    oos_pf = oos_stats["profit_factor"]
+    is_pf = is_stats["profit_factor"]
+    oos_n = oos_stats["n_trades"]
+
+    checks = [
+        {
+            "key": "sample",
+            "label": f"Out-of-sample trades ≥ {min_oos_trades}",
+            "value": str(oos_n),
+            "passed": oos_n >= min_oos_trades,
+        },
+        {
+            "key": "profit_factor",
+            "label": f"Out-of-sample profit factor ≥ {min_oos_pf:.2f}",
+            "value": _pf_txt(oos_pf),
+            "passed": oos_pf >= min_oos_pf,
+        },
+    ]
+
+    # Degradation: how much of the in-sample edge survived out of sample.
+    if is_pf > 0 and is_pf < 999.0:
+        ratio = oos_pf / is_pf
+        drop = max(0.0, 1.0 - ratio)
+        checks.append({
+            "key": "degradation",
+            "label": f"Degradation ≤ {int(max_degradation * 100)}% vs in-sample",
+            "value": f"{drop * 100:.0f}% drop",
+            "passed": ratio >= (1.0 - max_degradation),
+        })
+    else:
+        # No usable in-sample profit factor to compare against — can't clear it.
+        checks.append({
+            "key": "degradation",
+            "label": f"Degradation ≤ {int(max_degradation * 100)}% vs in-sample",
+            "value": "n/a (no in-sample edge)",
+            "passed": False,
+        })
+
+    cleared = all(c["passed"] for c in checks)
+    if cleared:
+        summary = ("CLEARED — the edge held up on data it never saw. "
+                   "Paper-trade it first; a backtest is not a guarantee.")
+    else:
+        fails = ", ".join(c["label"].split(" ≥")[0].split(" ≤")[0].strip().lower()
+                          for c in checks if not c["passed"])
+        summary = f"NOT CLEARED — failed on: {fails}. Don't size into this yet."
+
+    return {
+        "cleared": cleared,
+        "summary": summary,
+        "checks": checks,
+        "thresholds": {
+            "min_oos_pf": min_oos_pf,
+            "max_degradation": max_degradation,
+            "min_oos_trades": min_oos_trades,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # IV series builder
 # ---------------------------------------------------------------------------
@@ -362,6 +444,8 @@ def run_backtest(
     # ── stats ─────────────────────────────────────────────────────────────
     is_trades  = [t for t in all_trades if t.in_sample]
     oos_trades = [t for t in all_trades if not t.in_sample]
+    is_stats   = _stats(is_trades)
+    oos_stats  = _stats(oos_trades)
 
     # ── regime breakdown ──────────────────────────────────────────────────
     regime_map: dict[str, list] = {}
@@ -421,8 +505,9 @@ def run_backtest(
         },
         "oos_start":      oos_start_date.isoformat(),
         "stats":          _stats(all_trades),
-        "in_sample":      _stats(is_trades),
-        "out_of_sample":  _stats(oos_trades),
+        "in_sample":      is_stats,
+        "out_of_sample":  oos_stats,
+        "deploy_gate":    deploy_gate(is_stats, oos_stats),
         "regime":         regime_list,
         "equity_curve":   equity_curve,
         "sensitivity": {

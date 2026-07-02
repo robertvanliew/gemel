@@ -1318,6 +1318,90 @@
       color: var(--accent)
     }
 
+    /* deploy gate — GO / NO-GO verdict */
+    .gate-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-bottom: 14px
+    }
+
+    .gate-banner .gate-icon {
+      font-size: 20px;
+      line-height: 1;
+      flex: none
+    }
+
+    .gate-banner .gate-verdict {
+      font-weight: 700;
+      font-size: 15px
+    }
+
+    .gate-banner .gate-sub {
+      font-size: 12.5px;
+      margin-top: 2px;
+      opacity: .85
+    }
+
+    .gate-banner.cleared {
+      background: #e9f6ee;
+      border: 1px solid #b7e2c8;
+      color: #0b6b3a
+    }
+
+    .gate-banner.blocked {
+      background: #fdecec;
+      border: 1px solid #f3c2c2;
+      color: #a12525
+    }
+
+    [data-theme="dark"] .gate-banner.cleared {
+      background: rgba(9, 133, 81, .12);
+      border-color: rgba(9, 133, 81, .4);
+      color: #4bd08a
+    }
+
+    [data-theme="dark"] .gate-banner.blocked {
+      background: rgba(200, 40, 40, .12);
+      border-color: rgba(200, 40, 40, .4);
+      color: #f08a8a
+    }
+
+    .gate-checks {
+      display: grid;
+      gap: 8px
+    }
+
+    .gate-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px
+    }
+
+    .gate-check .gc-mark {
+      flex: none;
+      width: 18px;
+      text-align: center;
+      font-weight: 700
+    }
+
+    .gate-check .gc-mark.ok {
+      color: var(--green)
+    }
+
+    .gate-check .gc-mark.no {
+      color: var(--red)
+    }
+
+    .gate-check .gc-val {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      color: var(--muted)
+    }
+
     /* ============================================================
        RESPONSIVE / MOBILE
        Mobile top bar + off-canvas drawer sidebar, fluid grids,
@@ -2059,6 +2143,25 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+          <div class="panel">
+            <h3>Deploy gate <span class="muted" style="font-weight:400">— would this playbook clear the bar to trade?</span>
+              <span class="help" data-help="Borrowed from walk-forward trading discipline: a blunt GO / NO-GO judged only on the held-out out-of-sample slice, so it can't be curve-fit. A pass means it's worth paper-trading — never advice to place an order.">?</span>
+            </h3>
+            <div id="bt-gate">
+              <div class="gate-banner cleared">
+                <span class="gate-icon">✓</span>
+                <span>
+                  <div class="gate-verdict">CLEARED — worth paper-trading</div>
+                  <div class="gate-sub">the edge held up on data it never saw. Paper-trade it first; a backtest is not a guarantee.</div>
+                </span>
+              </div>
+              <div class="gate-checks">
+                <div class="gate-check"><span class="gc-mark ok">✓</span><span>Out-of-sample trades ≥ 20</span><span class="gc-val">34</span></div>
+                <div class="gate-check"><span class="gc-mark ok">✓</span><span>Out-of-sample profit factor ≥ 1.30</span><span class="gc-val">1.59</span></div>
+                <div class="gate-check"><span class="gc-mark ok">✓</span><span>Degradation ≤ 30% vs in-sample</span><span class="gc-val">12% drop</span></div>
+              </div>
+            </div>
           </div>
           <div class="panel">
             <h3>In-sample vs out-of-sample <span class="muted" style="font-weight:400">— overfitting check</span></h3>
@@ -3685,6 +3788,27 @@
       set('bt-winrate', d.stats.win_rate.toFixed(0) + '%');
       set('bt-pf', pfTxt(d.stats.profit_factor));
       set('bt-maxdd', fmtUSD(d.stats.max_drawdown));
+
+      // deploy gate — GO / NO-GO
+      const gate = d.deploy_gate, gel = document.getElementById('bt-gate');
+      if (gel && gate) {
+        const rows = gate.checks.map(c => `
+          <div class="gate-check">
+            <span class="gc-mark ${c.passed ? 'ok' : 'no'}">${c.passed ? '✓' : '✗'}</span>
+            <span>${c.label}</span>
+            <span class="gc-val">${c.value}</span>
+          </div>`).join('');
+        const sub = gate.summary.replace(/^(CLEARED|NOT CLEARED)\s*[—-]\s*/, '');
+        gel.innerHTML = `
+          <div class="gate-banner ${gate.cleared ? 'cleared' : 'blocked'}">
+            <span class="gate-icon">${gate.cleared ? '✓' : '✕'}</span>
+            <span>
+              <div class="gate-verdict">${gate.cleared ? 'CLEARED — worth paper-trading' : 'NOT CLEARED'}</div>
+              <div class="gate-sub">${sub}</div>
+            </span>
+          </div>
+          <div class="gate-checks">${rows}</div>`;
+      }
 
       // regime table
       const rt = document.getElementById('bt-regime');

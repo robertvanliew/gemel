@@ -116,7 +116,8 @@ def csp_result(adapter):
 # ── test 1: top-level keys and nested stats keys ──────────────────────────────
 
 TOP_KEYS = {"ticker", "strategy", "params", "oos_start", "stats",
-            "in_sample", "out_of_sample", "regime", "equity_curve", "sensitivity"}
+            "in_sample", "out_of_sample", "deploy_gate", "regime",
+            "equity_curve", "sensitivity"}
 STATS_KEYS = {"n_trades", "win_rate", "avg_win", "avg_loss",
               "profit_factor", "max_drawdown"}
 PARAMS_KEYS = {"dte", "width", "target_delta", "profit_target_pct",
@@ -343,3 +344,65 @@ def test_regime_breakdown(result):
 def test_echo_fields(result):
     assert result["ticker"]   == "SPY"
     assert result["strategy"] == "bull_put_spread"
+
+
+# ── test 10: deploy gate (GO / NO-GO) ────────────────────────────────────────
+
+def test_deploy_gate_present_and_shaped(result):
+    gate = result["deploy_gate"]
+    assert set(gate.keys()) == {"cleared", "summary", "checks", "thresholds"}
+    assert isinstance(gate["cleared"], bool)
+    assert len(gate["checks"]) == 3
+    for c in gate["checks"]:
+        assert set(c.keys()) == {"key", "label", "value", "passed"}
+        assert isinstance(c["passed"], bool)
+    # cleared iff every check passed
+    assert gate["cleared"] == all(c["passed"] for c in gate["checks"])
+
+
+def test_deploy_gate_clears_strong_oos():
+    from backtester.engine import deploy_gate
+    is_stats  = {"profit_factor": 1.6, "n_trades": 120}
+    oos_stats = {"profit_factor": 1.5, "n_trades": 40}
+    gate = deploy_gate(is_stats, oos_stats)
+    assert gate["cleared"] is True
+    assert gate["summary"].startswith("CLEARED")
+
+
+def test_deploy_gate_blocks_low_profit_factor():
+    from backtester.engine import deploy_gate
+    is_stats  = {"profit_factor": 1.6, "n_trades": 120}
+    oos_stats = {"profit_factor": 1.05, "n_trades": 40}  # below 1.3 floor
+    gate = deploy_gate(is_stats, oos_stats)
+    assert gate["cleared"] is False
+    pf_check = next(c for c in gate["checks"] if c["key"] == "profit_factor")
+    assert pf_check["passed"] is False
+
+
+def test_deploy_gate_blocks_too_few_trades():
+    from backtester.engine import deploy_gate
+    is_stats  = {"profit_factor": 1.6, "n_trades": 120}
+    oos_stats = {"profit_factor": 1.5, "n_trades": 8}  # below 20
+    gate = deploy_gate(is_stats, oos_stats)
+    assert gate["cleared"] is False
+    sample_check = next(c for c in gate["checks"] if c["key"] == "sample")
+    assert sample_check["passed"] is False
+
+
+def test_deploy_gate_blocks_overfit_degradation():
+    from backtester.engine import deploy_gate
+    # Great in-sample, collapses out of sample -> classic overfit.
+    is_stats  = {"profit_factor": 3.0, "n_trades": 120}
+    oos_stats = {"profit_factor": 1.35, "n_trades": 40}  # >50% drop
+    gate = deploy_gate(is_stats, oos_stats)
+    assert gate["cleared"] is False
+    deg_check = next(c for c in gate["checks"] if c["key"] == "degradation")
+    assert deg_check["passed"] is False
+
+
+def test_deploy_gate_no_in_sample_edge_cannot_clear():
+    from backtester.engine import deploy_gate
+    is_stats  = {"profit_factor": 0.0, "n_trades": 0}
+    oos_stats = {"profit_factor": 2.0, "n_trades": 40}
+    gate = deploy_gate(is_stats, oos_stats)
+    assert gate["cleared"] is False

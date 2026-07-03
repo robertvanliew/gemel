@@ -2451,6 +2451,34 @@
               every trade.</p>
           </div>
         </div>
+
+        <div class="panel">
+          <h3 style="justify-content:space-between">
+            <span>Momentum leaders <span class="muted" style="font-weight:400">— rate-of-change ranking for LEAP ideas</span>
+              <span class="help" data-help="Ranks a watchlist by 252-day and 63-day rate of change — the 'buy strength' half of the public-portfolio-challenge playbook, re-ranked on live data instead of a list frozen in hindsight. Est. LEAP is a Black-Scholes ballpark for one ~1-year at-the-money call; the check shows whether that premium fits your 2% per-trade cap. A rank is not a recommendation — run any idea through the flight check and journal it.">?</span>
+            </span>
+            <button class="btn ghost" id="mom-run" style="font-size:12px">Rank now</button>
+          </h3>
+          <div class="banner warn" style="margin-bottom:12px">Long calls risk 100% of the premium paid — the whole
+            contract cost is your max loss. Names over your cap belong on the watchlist, not in the account.</div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Ticker</th>
+                <th>Last</th>
+                <th>1-yr ROC</th>
+                <th>3-mo ROC</th>
+                <th>Est. LEAP</th>
+                <th>Fits 2% cap?</th>
+              </tr>
+            </thead>
+            <tbody id="mom-rows">
+              <tr><td colspan="7" class="softtext">Click <b>Rank now</b> to rank the watchlist on live data
+                (21 names — takes a few seconds).</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- ===== LEARN ===== -->
@@ -3482,6 +3510,37 @@
     const runBtn = document.getElementById('scan-run');
     if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = 'Running…'; loadScan(true); setTimeout(() => runBtn.textContent = 'Run now', 1500); });
     loadScan(false);  // attempt on load (no-ops under file://)
+
+    // ---- Momentum leaders (live, on demand — 21 tickers takes a few seconds) ----
+    const rocCell = v => v == null ? '<span class="muted">n/a</span>'
+      : `<span style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'}">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    function loadMomentum() {
+      const rows = document.getElementById('mom-rows'), btn = document.getElementById('mom-run');
+      if (!rows) return;
+      if (btn) { btn.textContent = 'Ranking…'; btn.disabled = true; }
+      rows.innerHTML = '<tr><td colspan="7" class="softtext">Fetching a year of history for each name…</td></tr>';
+      fetch('/api/momentum')
+        .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
+        .then(d => {
+          flipLive();
+          rows.innerHTML = d.leaders.length ? d.leaders.map(r => `<tr>
+            <td class="muted">${r.rank}</td>
+            <td><b>${r.ticker}</b>${r.thin_history ? ' <span class="muted" style="font-size:11px" title="Listed under a year — 1-yr ROC unavailable">thin</span>' : ''}</td>
+            <td>$${r.spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>${rocCell(r.roc_252)}</td>
+            <td>${rocCell(r.roc_63)}</td>
+            <td>${r.leap_cost > 0 ? '~$' + r.leap_cost.toLocaleString() : '<span class="muted">n/a</span>'}</td>
+            <td>${r.affordable
+              ? '<span style="color:var(--green)">✓ within $' + d.cap_dollars.toLocaleString() + '</span>'
+              : '<span style="color:var(--red)">✗ over cap — spread or skip</span>'}</td>
+          </tr>`).join('')
+            : '<tr><td colspan="7" class="softtext">No names could be ranked (data source unavailable?).</td></tr>';
+        })
+        .catch(() => { rows.innerHTML = '<tr><td colspan="7" class="softtext">Needs the live engine — open localhost:8000 (or the hosted app).</td></tr>'; })
+        .finally(() => { if (btn) { btn.textContent = 'Rank now'; btn.disabled = false; } });
+    }
+    const momBtn = document.getElementById('mom-run');
+    if (momBtn) momBtn.addEventListener('click', loadMomentum);
 
     // ---- Journal (live) ----
     const STRAT_LABEL = { bull_put_spread: 'Bull Put Credit Spread', cash_secured_put: 'Cash-Secured Put', long_option: 'Directional Long Option' };

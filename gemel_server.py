@@ -22,6 +22,7 @@ from core.options.iv_proxy import iv_rank, vol_index_symbol
 from flightcheck.service import cap_pct, max_loss_for, spread_metrics, within_cap
 from journal import service as journal
 from market.service import compute_breadth
+from scanner.momentum import momentum_leaders
 from scanner.scan import run_scan
 
 ROOT = Path(__file__).resolve().parent
@@ -119,6 +120,19 @@ def scan() -> JSONResponse:
     """Run the weekly ETF scan on live data and return the report."""
     adapter = make_adapter()
     return JSONResponse(run_scan(adapter, today=date.today()))
+
+
+@app.get("/api/momentum")
+def momentum(tickers: str | None = None) -> JSONResponse:
+    """Momentum Leaders: rank a universe by 252d/63d rate-of-change on live
+    data, with an ATM-LEAP cost estimate judged against the 2% cap. Read-only —
+    a rank is not a recommendation."""
+    universe = None
+    if tickers:
+        universe = [t.strip().upper() for t in tickers.split(",") if t.strip()][:40]
+    report = momentum_leaders(make_adapter(), universe,
+                              account_size=ACCOUNT_SIZE, cap_pct=MAX_LOSS_CAP_PCT)
+    return JSONResponse(report)
 
 
 # ---------- backtester ----------

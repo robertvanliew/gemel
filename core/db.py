@@ -2,7 +2,7 @@
 live in the parquet cache. The exit-plan fields on Trade are NOT NULL by
 design: 'the plan is written when you're calm' is enforced by the schema.
 """
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlmodel import Field, SQLModel, create_engine
 
@@ -49,6 +49,32 @@ class TradeRule(SQLModel, table=True):
     rule_key: str
     rule_label: str
     followed: bool
+
+
+class MomoPosition(SQLModel, table=True):
+    """One paper call-debit-spread in the momentum playbook's book.
+
+    Dollar fields are TOTALS for the position (per-share x 100 x qty) so the
+    cap math reads directly. Entry fills ask-side, exits bid-side — paper
+    results mirror real friction rather than flattering it.
+    """
+    id: int | None = Field(default=None, primary_key=True)
+    ticker: str
+    theme: str                          # for the max-2-per-theme rule
+    long_strike: float
+    short_strike: float
+    expiry: date
+    qty: int = 1
+    entry_debit: float                  # total $ paid (ask-side fill)
+    max_value: float                    # (short-long) x 100 x qty, $
+    opened_at: datetime
+    closed_at: datetime | None = None
+    exit_value: float | None = None     # total $ received (bid-side fill)
+    realized_pnl: float | None = None
+    exit_rule: str | None = None        # profit | signal | dte | discretionary
+    rule_triggered: bool | None = None  # was a rule showing when closed? -> adherence
+    status: str = "open"                # open | closed
+    journal_trade_id: int | None = Field(default=None, foreign_key="trade.id")
 
 
 class BacktestRun(SQLModel, table=True):

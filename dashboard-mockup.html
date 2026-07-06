@@ -1615,7 +1615,8 @@
         <a data-view="journal"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15H8a2 2 0 0 1-2-2z" /><path d="M10 4v16" /></svg></span> Journal</span></a>
         <a data-view="analytics"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5v15h16" /><path d="M7 15l4-4 3 2 5-6" /></svg></span> Analytics</span></a>
         <a data-view="backtester"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 3h6" /><path d="M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /><path d="M7.5 15h9" /></svg></span> Backtester</span></a>
-        <a data-view="scanner"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" /></svg></span> Scanner</span></a>
+        <a data-view="scanner"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4-4" /></svg></span> Credit spreads</span></a>
+        <a data-view="momentum"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 17l5-6 4 3 7-9" /><path d="M14 5h6v6" /></svg></span> Momentum</span></a>
         <a data-view="learn"><span class="label"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 4 2 9l10 5 10-5-10-5z" /><path d="M6 11v5c0 1.2 3 3 6 3s6-1.8 6-3v-5" /></svg></span> Learn</span></a>
       </nav>
       <div class="note">
@@ -2199,14 +2200,34 @@
           <h3>Parameter sensitivity — profit factor</h3>
           <div id="heatmap" style="height:240px"></div>
         </div>
+
+        <div class="panel">
+          <h3 style="justify-content:space-between">
+            <span>Momentum playbook <span class="muted" style="font-weight:400">— call debit spreads, end-to-end</span>
+              <span class="help" data-help="Runs the whole momentum loop on history: monthly rank by 1-year ROC, hold the top names as ~9-month call debit spreads, exit at 75% of max value or when a name drops out of the top 10. Fills are modeled pessimistically (mid ± slippage). For tuning exits and sizing only — the watchlist was picked knowing it performed, so returns here flatter the strategy.">?</span>
+            </span>
+            <span class="row" style="gap:8px">
+              <select id="mbt-years" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:6px 9px;font-size:12px">
+                <option value="2">2 years</option>
+                <option value="3" selected>3 years</option>
+                <option value="5">5 years</option>
+              </select>
+              <button class="btn ghost" id="mbt-run" style="font-size:12px">Run momentum backtest</button>
+            </span>
+          </h3>
+          <div class="banner warn" style="margin-bottom:12px">Hindsight bias: the watchlist was assembled knowing these
+            names performed. Use this to tune exits/sizing — never to project returns.</div>
+          <div id="mbt-stats" class="softtext" style="margin-bottom:10px">Not run yet.</div>
+          <div id="mbt-equity" style="height:240px"></div>
+        </div>
       </section>
 
       <!-- ===== SCANNER ===== -->
       <section class="view" id="scanner">
         <div class="head">
           <div>
-            <h1>Scanner <span class="help r" data-help="The automated Sunday screen. Run now pulls live data and checks every ETF against trend, RSI, IV-rank, support and event-risk. It hands you a shortlist and a suggested spread to review — it never places a trade. If the master gate is red (SPY below its 50-day EMA) the correct move is to stand aside that week."></span></h1>
-            <div class="sub">Sunday screen → a shortlist to review. You place every trade by hand.</div>
+            <h1>Credit spreads <span class="help r" data-help="The automated Sunday screen. Run now pulls live data and checks every ETF against trend, RSI, IV-rank, support and event-risk. It hands you a shortlist and a suggested spread to review — it never places a trade. If the master gate is red (SPY below its 50-day EMA) the correct move is to stand aside that week."></span></h1>
+            <div class="sub">6 ETFs · bull put credit spreads · weekly Sunday screen · <b>2% per-trade cap</b>. You place every trade by hand.</div>
           </div>
           <div class="row"><span class="muted" id="scan-lastrun">Last run: Sun May 31, 6:00 PM</span><button class="btn" id="scan-run">Run
               now</button></div>
@@ -2452,32 +2473,106 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- ===== MOMENTUM SPREADS (monthly playbook) ===== -->
+      <section class="view" id="momentum">
+        <div class="head">
+          <div>
+            <h1>Momentum spreads <span class="help r" data-help="The monthly playbook: rank the watchlist by 1-year rate of change, hold up to 7 call debit spreads on the leaders, exit at 75% of max value or when a name falls out of the top 10 at the monthly re-rank. Paper only until a full cycle has run. A rank is not a recommendation — you place every trade by hand."></span></h1>
+            <div class="sub">21-name watchlist · call debit spreads · monthly re-rank · <b>15% per-position cap</b>
+              (own playbook — not the credit side's 2%).</div>
+          </div>
+          <div class="row"><span class="muted" id="momo-lastrun"></span><button class="btn" id="mom-run">Rank now</button></div>
+        </div>
+
+        <div class="banner" id="momo-playbook">Playbook rules load with the first ranking…</div>
+        <div class="banner warn" id="momo-rerank" style="display:none"></div>
+
         <div class="panel">
           <h3 style="justify-content:space-between">
-            <span>Momentum leaders <span class="muted" style="font-weight:400">— rate-of-change ranking for LEAP ideas</span>
-              <span class="help" data-help="Ranks a watchlist by 252-day and 63-day rate of change — the 'buy strength' half of the public-portfolio-challenge playbook, re-ranked on live data instead of a list frozen in hindsight. Est. LEAP is a Black-Scholes ballpark for one ~1-year at-the-money call; the check shows whether that premium fits your 2% per-trade cap. A rank is not a recommendation — run any idea through the flight check and journal it.">?</span>
+            <span>This month's qualifying candidates <span class="muted" style="font-weight:400">— suggested for review, not execution</span>
+              <span class="help" data-help="Applies every gate automatically: top of the ROC ranking, real option-chain liquidity (net width ≤10% of mid, ≥100 OI both legs), spread cost inside the 15% cap at the ask, and max 2 per theme counting what you already hold. One click pre-fills the paper-entry form — nothing is ever placed for you.">?</span>
             </span>
-            <button class="btn ghost" id="mom-run" style="font-size:12px">Rank now</button>
+            <button class="btn ghost" id="momo-cand-btn" style="font-size:12px">Find candidates</button>
           </h3>
-          <div class="banner warn" style="margin-bottom:12px">Long calls risk 100% of the premium paid — the whole
-            contract cost is your max loss. Names over your cap belong on the watchlist, not in the account.</div>
+          <div id="momo-cand-note" class="softtext" style="margin-bottom:10px">Run after <b>Rank now</b> — fetches real
+            option chains for the gated names (~10-30s).</div>
           <table>
             <thead>
+              <tr><th>#</th><th>Ticker</th><th>Theme</th><th>Strikes</th><th>Expiry</th><th>Debit (ask)</th>
+                <th>Max profit</th><th>Liquidity</th><th></th></tr>
+            </thead>
+            <tbody id="momo-cand-rows"><tr><td colspan="9" class="softtext">—</td></tr></tbody>
+          </table>
+          <div id="momo-skipped" class="muted" style="font-size:12px;margin-top:8px"></div>
+        </div>
+
+        <div class="panel">
+          <h3 style="justify-content:space-between">
+            <span>Ranking <span class="muted" style="font-weight:400">— 1-yr ROC is the signal; click a header to explore, Rank resets</span></span>
+            <span class="row" style="gap:6px">
+              <input id="momo-lookup" type="text" placeholder="Would META rank?" style="width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:6px 9px;font-size:12px">
+              <button class="btn ghost" id="momo-lookup-btn" style="font-size:12px">Lookup</button>
+            </span>
+          </h3>
+          <table>
+            <thead id="momo-thead">
               <tr>
-                <th>#</th>
-                <th>Ticker</th>
-                <th>Last</th>
-                <th>1-yr ROC</th>
-                <th>3-mo ROC</th>
-                <th>Est. LEAP</th>
-                <th>Fits 2% cap?</th>
+                <th data-k="rank" style="cursor:pointer">#</th>
+                <th data-k="ticker" style="cursor:pointer">Ticker</th>
+                <th data-k="spot" style="cursor:pointer">Last</th>
+                <th data-k="roc_252" style="cursor:pointer">1-yr ROC</th>
+                <th data-k="roc_63" style="cursor:pointer">3-mo ROC</th>
+                <th data-k="debit" style="cursor:pointer">Est. spread</th>
+                <th data-k="max_profit" style="cursor:pointer">Max profit</th>
+                <th>Liquidity</th>
+                <th data-k="fits_cap" style="cursor:pointer">Fits cap?</th>
+                <th data-k="theme" style="cursor:pointer">Theme</th>
               </tr>
             </thead>
             <tbody id="mom-rows">
-              <tr><td colspan="7" class="softtext">Click <b>Rank now</b> to rank the watchlist on live data
+              <tr><td colspan="10" class="softtext">Click <b>Rank now</b> to rank the watchlist on live data
                 (21 names — takes a few seconds).</td></tr>
             </tbody>
           </table>
+          <div class="muted" style="font-size:12px;margin-top:8px">Est. spread = model call debit spread (buy ~5% OTM /
+            sell ~20% OTM, ~9 months out) at Black-Scholes mid. Liquidity fills in for names checked by
+            <b>Find candidates</b> against real chains.</div>
+        </div>
+
+        <div class="panel" id="momo-entry-panel" style="display:none">
+          <h3>Paper entry <span class="muted" style="font-weight:400">— fills at the ask (pessimistic on purpose)</span></h3>
+          <div class="fc-grid" style="margin-bottom:10px">
+            <div><div class="fc-k">Ticker</div><input id="me-ticker" type="text" style="width:90px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+            <div><div class="fc-k">Theme</div><input id="me-theme" type="text" style="width:110px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+            <div><div class="fc-k">Long strike</div><input id="me-long" type="number" step="0.5" style="width:90px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+            <div><div class="fc-k">Short strike</div><input id="me-short" type="number" step="0.5" style="width:90px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+            <div><div class="fc-k">Expiry</div><input id="me-expiry" type="date" style="background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+            <div><div class="fc-k">Debit $ (total)</div><input id="me-debit" type="number" step="1" style="width:100px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:6px 8px"></div>
+          </div>
+          <div id="me-impact" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+          <div class="row" style="gap:8px">
+            <button class="btn" id="me-confirm">Open paper position</button>
+            <button class="btn ghost" id="me-cancel">Cancel</button>
+          </div>
+          <div id="me-error" style="color:var(--red);font-size:13px;margin-top:8px"></div>
+        </div>
+
+        <div class="panel">
+          <h3 style="justify-content:space-between">
+            <span>Paper book <span class="muted" style="font-weight:400">— run a full monthly cycle here before anything goes live</span>
+              <span class="help" data-help="Every rule enforced at entry: ≤7 positions, ≤2 per theme, 15% per-position cap, ≤90% deployed, ≥$400 cash free. Position cards show % of max value (the profit exit keys on 75%) and rule alerts. The scorecard's adherence % — exits that matched a triggered rule — is what decides readiness for live, not P&L.">?</span>
+            </span>
+            <button class="btn ghost" id="momo-new-entry" style="font-size:12px">+ New paper entry</button>
+          </h3>
+          <div id="momo-exposure" class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"></div>
+          <table>
+            <thead><tr><th>Ticker</th><th>Spread</th><th>Expiry · DTE</th><th>Cost</th><th>Value now</th>
+              <th>% of max</th><th>P&L</th><th>Alerts</th><th></th></tr></thead>
+            <tbody id="momo-book-rows"><tr><td colspan="9" class="softtext">No open paper positions.</td></tr></tbody>
+          </table>
+          <div id="momo-scorecard" class="softtext" style="margin-top:12px"></div>
         </div>
       </section>
 
@@ -3511,39 +3606,288 @@
     if (runBtn) runBtn.addEventListener('click', () => { runBtn.textContent = 'Running…'; loadScan(true); setTimeout(() => runBtn.textContent = 'Run now', 1500); });
     loadScan(false);  // attempt on load (no-ops under file://)
 
-    // ---- Momentum leaders (live, on demand — 21 tickers takes a few seconds) ----
+    // ==== Momentum spreads playbook (own page: ranking, candidates, paper book) ====
     const rocCell = v => v == null ? '<span class="muted">n/a</span>'
       : `<span style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'}">${v >= 0 ? '+' : ''}${v.toFixed(1)}%</span>`;
+    const usd = v => '$' + Math.round(v).toLocaleString();
+    let momoLiquidity = {};   // ticker -> quote, filled by Find candidates
+
+    function renderPlaybookBanner(pb) {
+      const el = document.getElementById('momo-playbook');
+      if (el && pb) el.innerHTML = `<b>Active rules:</b> $${pb.account_size.toLocaleString()} momentum account ·
+        <b>${(pb.cap_pct * 100).toFixed(0)}% per position (${usd(pb.cap_dollars)})</b> ·
+        ≤${pb.max_positions} positions · ≤${pb.max_per_theme}/theme · ≤${(pb.deploy_cap_pct * 100).toFixed(0)}% deployed
+        (≥${usd(pb.min_cash)} cash free) · exits: ${pb.profit_exit_pct.toFixed(0)}% of max value / out of top
+        ${pb.signal_exit_rank} at re-rank / warn <${pb.dte_warn} DTE`;
+    }
+
+    function momoRowHtml(r, extra) {
+      const liq = momoLiquidity[r.ticker];
+      const liqCell = liq ? (liq.liquid
+        ? `<span style="color:var(--green)" title="${liq.liquidity_detail}">✓ liquid</span>`
+        : `<span style="color:var(--red)" title="${liq.liquidity_detail || liq.reason}">✗ watchlist only</span>`)
+        : '<span class="muted">—</span>';
+      return `<tr${extra || ''}>
+        <td class="muted">${r.rank}</td>
+        <td><b>${r.ticker}</b>${r.data_suspect ? ' <span style="color:var(--amber);font-size:11px" title="ROC > 1,000% or under 300 trading days of history (spinoff/split/recent IPO) — verify on the chart before trusting the rank">⚠ verify</span>' : ''}</td>
+        <td>$${r.spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td>${rocCell(r.roc_252)}</td>
+        <td>${rocCell(r.roc_63)}</td>
+        <td>${r.spread.debit > 0 ? '~' + usd(r.spread.debit) : '<span class="muted">n/a</span>'}</td>
+        <td>${r.spread.max_profit > 0 ? '~' + usd(r.spread.max_profit) : '<span class="muted">n/a</span>'}</td>
+        <td>${liqCell}</td>
+        <td>${r.fits_cap ? '<span style="color:var(--green)">✓</span>'
+        : '<span style="color:var(--red)" title="Model debit over the per-position cap — a pricier spread means a smaller book, not a bigger cap">✗ over cap</span>'}</td>
+        <td class="muted">${r.theme}</td>
+      </tr>`;
+    }
+
+    let momoSort = { k: 'rank', asc: true };
+    function renderMomoTable() {
+      const rows = document.getElementById('mom-rows'), d = window.__momo;
+      if (!rows || !d) return;
+      const val = r => momoSort.k === 'debit' ? r.spread.debit
+        : momoSort.k === 'max_profit' ? r.spread.max_profit : r[momoSort.k];
+      const sorted = [...d.leaders].sort((a, b) => {
+        const x = val(a), y = val(b);
+        const cmp = (x == null) - (y == null) || (x > y) - (x < y);
+        return momoSort.asc ? cmp : -cmp;
+      });
+      rows.innerHTML = sorted.map(r => momoRowHtml(r)).join('')
+        || '<tr><td colspan="10" class="softtext">No names could be ranked.</td></tr>';
+    }
+    document.querySelectorAll('#momo-thead th[data-k]').forEach(th => th.addEventListener('click', () => {
+      const k = th.dataset.k;
+      momoSort = { k, asc: momoSort.k === k ? !momoSort.asc : (k === 'rank' || k === 'ticker' || k === 'theme') };
+      renderMomoTable();
+    }));
+
     function loadMomentum() {
       const rows = document.getElementById('mom-rows'), btn = document.getElementById('mom-run');
       if (!rows) return;
       if (btn) { btn.textContent = 'Ranking…'; btn.disabled = true; }
-      rows.innerHTML = '<tr><td colspan="7" class="softtext">Fetching a year of history for each name…</td></tr>';
+      rows.innerHTML = '<tr><td colspan="10" class="softtext">Fetching a year of history for each name…</td></tr>';
       fetch('/api/momentum')
         .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
         .then(d => {
           flipLive();
-          rows.innerHTML = d.leaders.length ? d.leaders.map(r => `<tr>
-            <td class="muted">${r.rank}</td>
-            <td><b>${r.ticker}</b>${r.thin_history ? ' <span class="muted" style="font-size:11px" title="Listed under a year — 1-yr ROC unavailable">thin</span>' : ''}</td>
-            <td>$${r.spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${rocCell(r.roc_252)}</td>
-            <td>${rocCell(r.roc_63)}</td>
-            <td>${r.leap_cost > 0 ? '~$' + r.leap_cost.toLocaleString() : '<span class="muted">n/a</span>'}</td>
-            <td>${r.affordable
-              ? '<span style="color:var(--green)">✓ within $' + d.cap_dollars.toLocaleString() + '</span>'
-              : '<span style="color:var(--red)">✗ over cap — spread or skip</span>'}</td>
-          </tr>`).join('')
-            : '<tr><td colspan="7" class="softtext">No names could be ranked (data source unavailable?).</td></tr>';
+          window.__momo = d;
+          momoSort = { k: 'rank', asc: true };  // Rank now resets exploration sorts
+          renderPlaybookBanner(d.playbook);
+          renderMomoTable();
+          const lr = document.getElementById('momo-lastrun');
+          if (lr) lr.textContent = 'Ranked: ' + new Date().toLocaleDateString();
+          loadMomoBook();  // re-evaluates signal exits against the fresh ranking (§5)
         })
-        .catch(() => { rows.innerHTML = '<tr><td colspan="7" class="softtext">Needs the live engine — open localhost:8000 (or the hosted app).</td></tr>'; })
+        .catch(() => { rows.innerHTML = '<tr><td colspan="10" class="softtext">Needs the live engine — open localhost:8000 (or the hosted app).</td></tr>'; })
         .finally(() => { if (btn) { btn.textContent = 'Rank now'; btn.disabled = false; } });
     }
     const momBtn = document.getElementById('mom-run');
     if (momBtn) momBtn.addEventListener('click', loadMomentum);
 
+    // Lookup: where WOULD a symbol rank? (doesn't add it to the watchlist)
+    const momoLookupBtn = document.getElementById('momo-lookup-btn');
+    if (momoLookupBtn) momoLookupBtn.addEventListener('click', () => {
+      const inp = document.getElementById('momo-lookup'), t = (inp.value || '').trim().toUpperCase();
+      const d = window.__momo;
+      if (!t || !d) { alert(!t ? 'Type a ticker first.' : 'Run Rank now first — the lookup compares against the current ranking.'); return; }
+      momoLookupBtn.textContent = '…';
+      fetch('/api/momentum/lookup?ticker=' + encodeURIComponent(t))
+        .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'lookup failed'); return r.json(); })
+        .then(row => {
+          const better = d.leaders.filter(l => (l.roc_252 ?? -1e9) > (row.roc_252 ?? -1e9)).length;
+          row.rank = better + 1;
+          const rows = document.getElementById('mom-rows');
+          renderMomoTable();
+          rows.insertAdjacentHTML('afterbegin',
+            momoRowHtml(row, ' style="outline:2px solid var(--accent);outline-offset:-2px"')
+              .replace('<td class="muted">' + row.rank + '</td>',
+                `<td><b style="color:var(--accent)">would be #${row.rank}</b></td>`));
+        })
+        .catch(e => alert(e.message))
+        .finally(() => { momoLookupBtn.textContent = 'Lookup'; });
+    });
+
+    // Candidates: the gated shortlist, real chains (slow, labeled as such)
+    const candBtn = document.getElementById('momo-cand-btn');
+    if (candBtn) candBtn.addEventListener('click', () => {
+      const rows = document.getElementById('momo-cand-rows'), note = document.getElementById('momo-cand-note');
+      candBtn.textContent = 'Checking chains…'; candBtn.disabled = true;
+      rows.innerHTML = '<tr><td colspan="9" class="softtext">Pricing real spreads + liquidity on the gated names…</td></tr>';
+      fetch('/api/momentum/candidates')
+        .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
+        .then(d => {
+          d.candidates.forEach(c => momoLiquidity[c.ticker] = c.quote);
+          (d.skipped || []).forEach(s => { if (s.why.startsWith('illiquid')) momoLiquidity[s.ticker] = { liquid: false, reason: s.why }; });
+          renderMomoTable();
+          rows.innerHTML = d.candidates.length ? d.candidates.map(c => `<tr>
+              <td class="muted">${c.rank}</td><td><b>${c.ticker}</b>${c.data_suspect ? ' <span style="color:var(--amber)">⚠</span>' : ''}</td>
+              <td class="muted">${c.theme}</td>
+              <td>${c.quote.long_strike}/${c.quote.short_strike}</td>
+              <td>${c.quote.expiry} <span class="muted">(${c.quote.dte}d)</span></td>
+              <td>${usd(c.quote.debit_ask)}</td>
+              <td style="color:var(--green)">${usd(c.quote.max_value - c.quote.debit_ask)}</td>
+              <td><span style="color:var(--green)" title="${c.quote.liquidity_detail}">✓</span></td>
+              <td><button class="btn ghost" style="padding:3px 10px;font-size:11px" data-cand='${JSON.stringify({ t: c.ticker, th: c.theme, l: c.quote.long_strike, s: c.quote.short_strike, e: c.quote.expiry, d: c.quote.debit_ask })}'>Paper trade</button></td>
+            </tr>`).join('')
+            : '<tr><td colspan="9" class="softtext">Nothing qualifies this month — cash is a position. Do not relax a gate to force a trade.</td></tr>';
+          note.style.display = 'none';
+          const sk = document.getElementById('momo-skipped');
+          sk.textContent = (d.skipped || []).length
+            ? 'Skipped: ' + d.skipped.map(s => `${s.ticker} (${s.why})`).join(' · ') : '';
+          rows.querySelectorAll('button[data-cand]').forEach(b => b.addEventListener('click', () => {
+            const c = JSON.parse(b.dataset.cand);
+            openEntryForm({ ticker: c.t, theme: c.th, long: c.l, short: c.s, expiry: c.e, debit: c.d });
+          }));
+        })
+        .catch(() => { rows.innerHTML = '<tr><td colspan="9" class="softtext">Chain data unavailable — try again in a minute.</td></tr>'; })
+        .finally(() => { candBtn.textContent = 'Find candidates'; candBtn.disabled = false; });
+    });
+
+    // Paper entry form
+    function openEntryForm(pre) {
+      const p = document.getElementById('momo-entry-panel');
+      p.style.display = '';
+      document.getElementById('me-ticker').value = pre.ticker || '';
+      document.getElementById('me-theme').value = pre.theme || '';
+      document.getElementById('me-long').value = pre.long || '';
+      document.getElementById('me-short').value = pre.short || '';
+      document.getElementById('me-expiry').value = pre.expiry || '';
+      document.getElementById('me-debit').value = pre.debit || '';
+      document.getElementById('me-error').textContent = '';
+      const b = window.__momoBook, imp = document.getElementById('me-impact');
+      if (b && imp) {
+        const th = (pre.theme && b.themes.find(t => t.theme === pre.theme));
+        imp.innerHTML = `Book now: ${b.open.length}/${b.playbook.max_positions} positions · ${usd(b.deployed)} deployed ·
+          ${usd(b.cash_free)} cash free${th ? ` · <b>${th.theme}: already ${th.count} open (${usd(th.dollars)})</b>` : ''}`;
+      }
+      p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    const meCancel = document.getElementById('me-cancel');
+    if (meCancel) meCancel.addEventListener('click', () => document.getElementById('momo-entry-panel').style.display = 'none');
+    const meNew = document.getElementById('momo-new-entry');
+    if (meNew) meNew.addEventListener('click', () => openEntryForm({}));
+    const meConfirm = document.getElementById('me-confirm');
+    if (meConfirm) meConfirm.addEventListener('click', () => {
+      const body = {
+        ticker: document.getElementById('me-ticker').value.trim().toUpperCase(),
+        theme: document.getElementById('me-theme').value.trim() || 'untagged',
+        long_strike: +document.getElementById('me-long').value,
+        short_strike: +document.getElementById('me-short').value,
+        expiry: document.getElementById('me-expiry').value,
+        entry_debit: +document.getElementById('me-debit').value,
+      };
+      meConfirm.disabled = true;
+      fetch('/api/momo/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'blocked'); return r.json(); })
+        .then(() => { document.getElementById('momo-entry-panel').style.display = 'none'; loadMomoBook(); })
+        .catch(e => { document.getElementById('me-error').textContent = e.message; })
+        .finally(() => { meConfirm.disabled = false; });
+    });
+
+    // Paper book: marks, alerts, theme meter, scorecard, re-rank banner (§5)
+    function loadMomoBook() {
+      const rows = document.getElementById('momo-book-rows');
+      if (!rows) return;
+      const ranks = window.__momo ? window.__momo.leaders.map(l => l.ticker).join(',') : '';
+      fetch('/api/momo/book' + (ranks ? '?ranks=' + encodeURIComponent(ranks) : ''))
+        .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
+        .then(b => {
+          window.__momoBook = b;
+          renderPlaybookBanner(b.playbook);
+          // theme exposure meter
+          const exp = document.getElementById('momo-exposure');
+          exp.innerHTML = (b.themes.length ? b.themes.map(t =>
+            `<span class="pill" style="background:var(--panel2);border:1px solid var(--line);padding:4px 10px;border-radius:7px;font-size:12px">
+              ${t.theme}: <b>${t.count}</b> · ${usd(t.dollars)} · ${t.pct_of_deployed}%</span>`).join('') : '')
+            + `<span class="muted" style="font-size:12px">deployed ${usd(b.deployed)} · cash free ${usd(b.cash_free)}</span>`;
+          // open positions
+          rows.innerHTML = b.open.length ? b.open.map(p => {
+            const a = p.alerts || {};
+            const alerts = [
+              a.profit_exit ? '<b style="color:var(--green)">Profit exit triggered</b>' : '',
+              a.signal_exit === true ? '<b style="color:var(--red)">Signal exit triggered</b>' : '',
+              a.signal_exit === null ? '<span class="muted" title="Run Rank now to evaluate the signal rule">signal: run rank</span>' : '',
+              a.dte_warning ? '<span style="color:var(--amber)">&lt;45 DTE — close before expiry week</span>' : '',
+            ].filter(Boolean).join('<br>') || '<span class="muted">holding</span>';
+            const ruleNow = a.profit_exit ? 'profit' : a.signal_exit === true ? 'signal' : a.dte_warning ? 'dte' : 'discretionary';
+            return `<tr>
+              <td><b>${p.ticker}</b> <span class="muted" style="font-size:11px">${p.theme}</span></td>
+              <td>${p.long_strike}/${p.short_strike}</td>
+              <td>${p.expiry} <span class="muted">(${p.dte}d)</span></td>
+              <td>${usd(p.entry_debit)}</td>
+              <td>${p.current_value != null ? usd(p.current_value) : '<span class="muted" title="' + (p.mark_reason || '') + '">no mark</span>'}</td>
+              <td>${a.pct_of_max != null && p.current_value != null ? '<b>' + a.pct_of_max + '%</b>' : '—'}</td>
+              <td>${p.unrealized_pnl != null ? `<span style="color:${p.unrealized_pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${p.unrealized_pnl >= 0 ? '+' : ''}${usd(p.unrealized_pnl)}</span>` : '—'}</td>
+              <td style="font-size:12px">${alerts}</td>
+              <td><button class="btn ghost" style="padding:3px 10px;font-size:11px" data-close-momo="${p.id}"
+                data-value="${p.current_value != null ? p.current_value : ''}" data-rule="${ruleNow}"
+                data-ruled="${a.profit_exit || a.signal_exit === true || a.dte_warning ? '1' : ''}">Close</button></td>
+            </tr>`;
+          }).join('') : '<tr><td colspan="9" class="softtext">No open paper positions.</td></tr>';
+          rows.querySelectorAll('button[data-close-momo]').forEach(btn => btn.addEventListener('click', () => {
+            let v = btn.dataset.value;
+            if (v === '') { v = prompt('No live mark — closing value in $ (total for the spread):'); if (v == null) return; }
+            const ruled = btn.dataset.ruled === '1';
+            if (!ruled && !confirm('No exit rule is triggered — this close will log as DISCRETIONARY and count against adherence. Close anyway?')) return;
+            fetch('/api/momo/' + btn.dataset.closeMomo + '/close', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ exit_value: +v, exit_rule: btn.dataset.rule, rule_triggered: ruled }),
+            }).then(r => { if (!r.ok) throw 0; loadMomoBook(); loadJournal(true); }).catch(() => alert('Close failed.'));
+          }));
+          // scorecard — adherence first, P&L second (that's the point)
+          const s = b.scorecard, sc = document.getElementById('momo-scorecard');
+          sc.innerHTML = s.n_closed
+            ? `<b>Scorecard:</b> rule adherence <b style="color:${s.adherence_pct >= 90 ? 'var(--green)' : 'var(--amber)'}">${s.adherence_pct}%</b>
+               (the live-readiness metric) · ${s.n_closed} closed · win rate ${s.win_rate}% ·
+               total P&L <span style="color:${s.total_pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${s.total_pnl >= 0 ? '+' : ''}${usd(s.total_pnl)}</span>
+               · avg win ${s.avg_win != null ? usd(s.avg_win) : '—'} / avg loss ${s.avg_loss != null ? usd(s.avg_loss) : '—'}`
+            : '<b>Scorecard:</b> no closed paper trades yet — the first full monthly cycle is the goal.';
+          // §5 re-rank alert: held names that fell out of the ranking's top N
+          const banner = document.getElementById('momo-rerank');
+          const fallen = b.open.filter(p => p.alerts && p.alerts.signal_exit === true).map(p => p.ticker);
+          if (banner) {
+            banner.style.display = fallen.length ? '' : 'none';
+            if (fallen.length) banner.innerHTML = `<b>Signal exit:</b> ${fallen.join(', ')} fell out of the top
+              ${b.playbook.signal_exit_rank} at this re-rank — the playbook says close ${fallen.length > 1 ? 'them' : 'it'}.`;
+          }
+        })
+        .catch(() => { /* file:// or server down */ });
+    }
+    document.querySelectorAll('.nav a[data-view="momentum"]').forEach(a =>
+      a.addEventListener('click', loadMomoBook));
+
+    // Momentum backtest panel (§6)
+    const mbtRun = document.getElementById('mbt-run');
+    if (mbtRun) mbtRun.addEventListener('click', () => {
+      const stats = document.getElementById('mbt-stats');
+      mbtRun.textContent = 'Running… (30-60s)'; mbtRun.disabled = true;
+      fetch('/api/backtest/momentum?years=' + document.getElementById('mbt-years').value)
+        .then(async r => { if (!r.ok) throw new Error((await r.json()).detail || 'failed'); return r.json(); })
+        .then(d => {
+          const s = d.stats;
+          stats.innerHTML = `<b>${s.n_trades} trades</b> · win rate ${s.win_rate.toFixed(0)}% ·
+            total return <b style="color:${s.total_return_pct >= 0 ? 'var(--green)' : 'var(--red)'}">${s.total_return_pct >= 0 ? '+' : ''}${s.total_return_pct}%</b> ·
+            max drawdown ${s.max_drawdown_pct}% · participation ${s.participation} ·
+            exits: ${Object.entries(d.exits_by_reason).map(([k, v]) => `${k} ×${v}`).join(' · ')}<br>
+            <span class="muted" style="font-size:12px">${d.limitations.join(' ')}</span>`;
+          const el = document.getElementById('mbt-equity');
+          Plotly.react(el, [{
+            x: d.equity_curve.map(p => p.date), y: d.equity_curve.map(p => p.equity),
+            type: 'scatter', mode: 'lines', line: { color: cssv('--accent'), width: 2 },
+            fill: 'tozeroy', fillcolor: 'rgba(11,111,255,.06)',
+            hovertemplate: '%{x}<br><b>%{y:$,.0f}</b><extra></extra>',
+          }], {
+            ...dark, margin: { l: 60, r: 14, t: 8, b: 28 },
+            yaxis: { gridcolor: cssv('--grid'), tickformat: '$,.0f' },
+          }, { displayModeBar: false, responsive: true });
+        })
+        .catch(e => { stats.textContent = '' + e.message; })
+        .finally(() => { mbtRun.textContent = 'Run momentum backtest'; mbtRun.disabled = false; });
+    });
+
     // ---- Journal (live) ----
-    const STRAT_LABEL = { bull_put_spread: 'Bull Put Credit Spread', cash_secured_put: 'Cash-Secured Put', long_option: 'Directional Long Option' };
+    const STRAT_LABEL = { bull_put_spread: 'Bull Put Credit Spread', cash_secured_put: 'Cash-Secured Put', long_option: 'Directional Long Option', call_debit_spread: 'Call Debit Spread · Momentum' };
     function flipLive() {
       const badge = document.getElementById('mode-badge');
       if (badge && badge.textContent !== 'LIVE') { badge.textContent = 'LIVE'; badge.style.background = '#e2f3e9'; badge.style.borderColor = '#bfe5cd'; badge.style.color = 'var(--green)'; }

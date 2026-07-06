@@ -11,7 +11,7 @@ from momo.service import (
     scorecard,
     theme_exposure,
 )
-from scanner.chains import pick_expiry, snap_strike
+from scanner.chains import budget_spread_from_legs, pick_expiry, snap_strike
 
 
 TODAY = datetime.date(2026, 7, 1)
@@ -129,3 +129,64 @@ def test_pick_expiry_none_when_no_window_match():
 def test_snap_strike():
     assert snap_strike([90, 95, 100, 105, 110], 103.9) == 105
     assert snap_strike([], 100.0) is None
+
+
+# ── chains: budget-solved spread from real legs (§8.1) ──────────────────────
+
+def _legs():
+    """Tight, liquid synthetic chain. debit_ask vs 105-long: 110→$230,
+    115→$380, 120→$500, 125→$590."""
+    return [
+        {"strike": 105.0, "bid": 10.0, "ask": 10.2, "oi": 500},
+        {"strike": 110.0, "bid": 7.9, "ask": 8.1, "oi": 400},
+        {"strike": 115.0, "bid": 6.4, "ask": 6.6, "oi": 300},
+        {"strike": 120.0, "bid": 5.2, "ask": 5.4, "oi": 250},
+        {"strike": 125.0, "bid": 4.3, "ask": 4.5, "oi": 200},
+    ]
+
+
+def test_budget_picks_widest_affordable_width():
+    q = budget_spread_from_legs(_legs(), 105.0, budget=550.0, cap=600.0)
+    assert q["ok"] is True
+    assert q["long_strike"] == 105.0
+    assert q["short_strike"] == 120.0          # $500 fits; 125 would be $590 > $550
+    assert q["debit_ask"] == pytest.approx(500.0)
+    assert q["max_value"] == pytest.approx(1500.0)
+    assert q["liquid"] is True
+
+
+def test_budget_over_cap_when_even_min_width_too_dear():
+    q = budget_spread_from_legs(_legs(), 105.0, budget=150.0, cap=200.0)
+    assert q["ok"] is False and "over cap" in q["reason"]
+
+
+def test_budget_rr_numbers_available_for_the_floor_gate():
+    q = budget_spread_from_legs(_legs(), 105.0, budget=550.0, cap=600.0)
+    # candidates gate checks max_profit_mid >= 1.5x debit_mid — fields must exist
+    assert q["max_profit_mid"] / q["debit_mid"] > 1.5
+
+
+def test_budget_dead_chain():
+    assert budget_spread_from_legs([], 105.0)["ok"] is False
+    one = [{"strike": 105.0, "bid": 10.0, "ask": 10.2, "oi": 500}]
+    assert budget_spread_from_legs(one, 105.0)["ok"] is False
+
+
+def test_budget_after_hours_falls_back_to_last_trade():
+    """Market closed: bid/ask are 0 but lastPrice exists — Julie's Sunday
+    session must still get planning numbers, flagged stale, OI-only liquidity."""
+    legs = [
+        {"strike": 105.0, "bid": 0.0, "ask": 0.0, "oi": 500, "last": 10.1},
+        {"strike": 110.0, "bid": 0.0, "ask": 0.0, "oi": 400, "last": 8.0},
+        {"strike": 120.0, "bid": 0.0, "ask": 0.0, "oi": 250, "last": 5.3},
+    ]
+    q = budget_spread_from_legs(legs, 105.0, budget=550.0, cap=600.0)
+    assert q["ok"] is True and q["stale"] is True
+    assert q["short_strike"] == 120.0            # (10.1-5.3)*100 = $480 fits
+    assert q["debit_ask"] == pytest.approx(480.0)
+    assert q["spread_width_pct"] is None          # width unverifiable after hours
+    assert q["liquid"] is True                    # OI-only gate
+    assert "market closed" in q["liquidity_detail"]
+    # OI still gates when stale
+    legs_thin = [dict(l, oi=5) for l in legs]
+    assert budget_spread_from_legs(legs_thin, 105.0)["liquid"] is False

@@ -9,9 +9,13 @@ is costed against the momentum playbook's own per-position cap, and rows with
 suspect data (ROC > 1,000%, thin listing history) are flagged for chart
 verification rather than silently included.
 
-Model spread: buy ~5% OTM call, sell ~20% OTM (a 15%-of-spot-wide spread),
-~9 months out (mid of the 6-12 month window). Estimates are Black-Scholes at
-mid — the liquidity gate (scanner/chains.py) prices the real thing.
+Model spread (§8.1, corrected): buy ~5% OTM call, then solve the WIDTH from
+the budget — the widest spread whose debit fits ~$550 — instead of a fixed
+%-of-price width that scales with the stock and priced every big name out.
+A name is "over cap" only when even the narrowest listed increment costs more
+than the $600 cap: genuinely untradeable at this account size. Estimates are
+Black-Scholes at mid — the liquidity gate (scanner/chains.py) prices the real
+thing on real strikes.
 
 Read-only — emits a report dict, never an order. A rank is not a recommendation.
 """
@@ -49,8 +53,10 @@ THEMES: dict[str, str] = {
 _ROC_LONG = 252    # ~1 trading year — THE signal
 _ROC_SHORT = 63    # ~1 quarter — leadership health check
 _SPREAD_T = 0.75   # ~9 months, mid of the 6-12 month expiry window
-LONG_OTM = 0.05    # buy ~5% OTM
-SHORT_OTM = 0.20   # sell ~20% OTM
+LONG_OTM = 0.05    # buy ~5% OTM (the long leg anchor)
+SHORT_OTM = 0.20   # legacy fixed-width (still used by the backtest module)
+BUDGET = 550.0     # solve spread width from this target debit (§8.1)
+RR_FLOOR = 1.5     # candidates gate: max profit ≥ 1.5× debit (pass/fail ONLY)
 _MIN_HISTORY = 300      # fewer trading days -> "verify on chart" (IPO/spinoff/split)
 _SUSPECT_ROC = 1000.0   # 1-yr ROC beyond this -> "verify on chart"
 
@@ -69,26 +75,66 @@ def roc(closes, periods: int) -> float | None:
     return (float(closes.iloc[-1]) / past - 1.0) * 100.0
 
 
-def model_spread(spot: float, sigma: float) -> dict[str, float]:
-    """BS estimate of the model call debit spread on one contract, in dollars.
+def strike_increment(spot: float) -> float:
+    """Typical listed strike spacing 6-12 months out. A heuristic for the
+    model estimate only — real chains (chains.py) use the actual strikes."""
+    if spot < 50:
+        return 2.5
+    if spot < 200:
+        return 5.0
+    if spot < 500:
+        return 10.0
+    if spot < 1500:
+        return 25.0
+    return 50.0
 
-    Returns {long_strike, short_strike, debit, max_value, max_profit}. Strikes
-    are the ideal targets — chains.py snaps them to real listed strikes.
+
+def model_spread(spot: float, sigma: float, *, budget: float = BUDGET,
+                 cap: float | None = None) -> dict[str, float | bool]:
+    """Budget-solved model spread (§8.1): long leg ~5% OTM, width = the widest
+    strike-increment multiple whose BS debit fits `budget`.
+
+    `untradeable` is True only when even ONE increment of width costs more
+    than `cap` — that name genuinely cannot be traded at this account size.
+    Strikes are estimates on heuristic increments; chains.py prices reality.
     """
+    empty = {"long_strike": 0.0, "short_strike": 0.0, "width": 0.0, "debit": 0.0,
+             "max_value": 0.0, "max_profit": 0.0, "untradeable": True}
     if spot <= 0 or sigma <= 0:
-        return {"long_strike": 0.0, "short_strike": 0.0, "debit": 0.0,
-                "max_value": 0.0, "max_profit": 0.0}
-    k_long = spot * (1 + LONG_OTM)
-    k_short = spot * (1 + SHORT_OTM)
-    debit = (bs_call(spot, k_long, _SPREAD_T, sigma)
-             - bs_call(spot, k_short, _SPREAD_T, sigma)) * 100.0
-    max_value = (k_short - k_long) * 100.0
+        return empty
+    cap = cap if cap is not None else budget
+    inc = strike_increment(spot)
+    k_long = round(spot * (1 + LONG_OTM) / inc) * inc
+    long_px = bs_call(spot, k_long, _SPREAD_T, sigma)
+
+    def debit_for(k_short: float) -> float:
+        return (long_px - bs_call(spot, k_short, _SPREAD_T, sigma)) * 100.0
+
+    min_debit = debit_for(k_long + inc)
+    if min_debit > cap:
+        return {**empty, "long_strike": round(k_long, 2),
+                "short_strike": round(k_long + inc, 2), "width": inc,
+                "debit": round(min_debit, 0),
+                "max_value": round(inc * 100.0, 0),
+                "max_profit": round(inc * 100.0 - min_debit, 0)}
+
+    # widen while the debit still fits the budget (debit grows with width)
+    best = k_long + inc
+    for n in range(2, 41):
+        k = k_long + n * inc
+        if debit_for(k) > budget:
+            break
+        best = k
+    debit = debit_for(best)
+    max_value = (best - k_long) * 100.0
     return {
         "long_strike": round(k_long, 2),
-        "short_strike": round(k_short, 2),
+        "short_strike": round(best, 2),
+        "width": round(best - k_long, 2),
         "debit": round(debit, 0),
         "max_value": round(max_value, 0),
         "max_profit": round(max_value - debit, 0),
+        "untradeable": False,
     }
 
 
@@ -100,7 +146,7 @@ def rank_row(ticker: str, closes, *, cap_dollars: float) -> dict[str, Any] | Non
     r252 = roc(closes, _ROC_LONG)
     r63 = roc(closes, _ROC_SHORT)
     sigma = realized_vol(closes, window=63)
-    sp = model_spread(spot, sigma)
+    sp = model_spread(spot, sigma, budget=BUDGET, cap=cap_dollars)
     return {
         "ticker": ticker,
         "theme": THEMES.get(ticker, "untagged"),
@@ -108,12 +154,14 @@ def rank_row(ticker: str, closes, *, cap_dollars: float) -> dict[str, Any] | Non
         "roc_252": None if r252 is None else round(r252, 1),
         "roc_63": None if r63 is None else round(r63, 1),
         "thin_history": r252 is None,
+        # §8.3: no 1-yr ROC = no signal — never a candidate, sinks in the sort.
+        "no_signal": r252 is None,
         "data_suspect": (len(closes) < _MIN_HISTORY
                          or (r252 is not None and r252 > _SUSPECT_ROC)),
         "spread": sp,
-        # Spread max loss = the debit paid — judged against the MOMENTUM
-        # playbook's per-position cap, not the credit playbook's 2%.
-        "fits_cap": bool(0 < sp["debit"] <= cap_dollars),
+        # §8.1: over cap only when even the minimum width doesn't fit —
+        # genuinely untradeable at this account size.
+        "fits_cap": not sp["untradeable"],
     }
 
 
@@ -142,11 +190,10 @@ def momentum_leaders(
         if row:
             rows.append(row)
 
-    rows.sort(
-        key=lambda r: r["roc_252"] if r["roc_252"] is not None
-        else (r["roc_63"] if r["roc_63"] is not None else -1e9),
-        reverse=True,
-    )
+    # §8.3: the signal is 1-yr ROC — rows without it sink to the BOTTOM
+    # (3-mo ROC is a health check, not a substitute signal).
+    rows.sort(key=lambda r: (r["roc_252"] is None,
+                             -(r["roc_252"] if r["roc_252"] is not None else 0.0)))
     for i, r in enumerate(rows, start=1):
         r["rank"] = i
 

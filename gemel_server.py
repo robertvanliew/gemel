@@ -26,7 +26,7 @@ from market.service import compute_breadth
 from momo import book as momo_book
 from momo import service as momo_rules
 from scanner.chains import mark_spread, spread_quote
-from scanner.momentum import momentum_leaders, rank_row
+from scanner.momentum import BUDGET, RR_FLOOR, momentum_leaders, rank_row
 from scanner.scan import run_scan
 
 ROOT = Path(__file__).resolve().parent
@@ -215,25 +215,37 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
     held_tickers = {p.ticker for p in held}
 
     candidates, skipped = [], []
-    for r in report["leaders"]:
+    # §8.2: chains only for the top ~10 ranked names — ranking needs stock
+    # prices only, and each chain fetch is throttled/rate-limit-prone.
+    pool = [r for r in report["leaders"] if r["ticker"] not in held_tickers][:10]
+    for r in pool:
         if len(candidates) >= momo_rules.MAX_POSITIONS:
             break
-        if r["ticker"] in held_tickers:
+        # §8.3: no 1-yr ROC = no signal = never a candidate, whatever else passes.
+        if r["no_signal"]:
+            skipped.append({"ticker": r["ticker"], "why": "no 1-yr ROC — no signal to rank on"})
             continue
         if not r["fits_cap"]:
+            skipped.append({"ticker": r["ticker"],
+                            "why": "untradeable — even the minimum width is over the cap"})
             continue
         if theme_counts.get(r["theme"], 0) >= momo_rules.MAX_PER_THEME:
             skipped.append({"ticker": r["ticker"], "why": f"theme “{r['theme']}” already at max"})
             continue
-        q = spread_quote(r["ticker"], r["spread"]["long_strike"], r["spread"]["short_strike"])
+        q = spread_quote(r["ticker"], r["spread"]["long_strike"],
+                         budget=BUDGET, cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT)
         if not q.get("ok"):
             skipped.append({"ticker": r["ticker"], "why": q.get("reason", "chain unavailable")})
             continue
         if not q["liquid"]:
             skipped.append({"ticker": r["ticker"], "why": f"illiquid — {q['liquidity_detail']}"})
             continue
-        if q["debit_ask"] > MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT:
-            skipped.append({"ticker": r["ticker"], "why": "real debit over cap at the ask"})
+        # §2: reward-to-risk FLOOR — a pass/fail structure check only. Selection
+        # order stays momentum rank; max profit must never rank or reorder.
+        if q["max_profit_mid"] < RR_FLOOR * q["debit_mid"]:
+            skipped.append({"ticker": r["ticker"],
+                            "why": f"reward/risk {q['max_profit_mid'] / q['debit_mid']:.1f}× "
+                                   f"below the {RR_FLOOR}× floor"})
             continue
         theme_counts[r["theme"]] = theme_counts.get(r["theme"], 0) + 1
         candidates.append({**{k: r[k] for k in ("rank", "ticker", "theme", "spot",

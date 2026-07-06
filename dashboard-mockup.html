@@ -2492,7 +2492,7 @@
         <div class="panel">
           <h3 style="justify-content:space-between">
             <span>This month's qualifying candidates <span class="muted" style="font-weight:400">— suggested for review, not execution</span>
-              <span class="help" data-help="Applies every gate automatically: top of the ROC ranking, real option-chain liquidity (net width ≤10% of mid, ≥100 OI both legs), spread cost inside the 15% cap at the ask, and max 2 per theme counting what you already hold. One click pre-fills the paper-entry form — nothing is ever placed for you.">?</span>
+              <span class="help" data-help="Applies every gate automatically: top of the ROC ranking (names without a 1-yr ROC never qualify), real option-chain liquidity (net width ≤10% of mid, ≥100 OI both legs), budget-solved spread inside the cap at the ask, reward-to-risk ≥1.5× (a pass/fail structure check — never used to reorder; selection is always by momentum rank), and max 2 per theme counting what you already hold. One click pre-fills the paper-entry form — nothing is ever placed for you.">?</span>
             </span>
             <button class="btn ghost" id="momo-cand-btn" style="font-size:12px">Find candidates</button>
           </h3>
@@ -2536,9 +2536,10 @@
                 (21 names — takes a few seconds).</td></tr>
             </tbody>
           </table>
-          <div class="muted" style="font-size:12px;margin-top:8px">Est. spread = model call debit spread (buy ~5% OTM /
-            sell ~20% OTM, ~9 months out) at Black-Scholes mid. Liquidity fills in for names checked by
-            <b>Find candidates</b> against real chains.</div>
+          <div class="muted" style="font-size:12px;margin-top:8px">Est. spread = budget-solved call debit spread: long
+            leg ~5% OTM, width widened until the est. debit reaches ~$550 (Black-Scholes mid, ~9 months out).
+            “✗ untradeable” means even the narrowest width is over the cap. Liquidity fills in for names checked by
+            <b>Find candidates</b> against real chains (top 10 only, throttled — chains are rate-limited).</div>
         </div>
 
         <div class="panel" id="momo-entry-panel" style="display:none">
@@ -3629,15 +3630,15 @@
         : '<span class="muted">—</span>';
       return `<tr${extra || ''}>
         <td class="muted">${r.rank}</td>
-        <td><b>${r.ticker}</b>${r.data_suspect ? ' <span style="color:var(--amber);font-size:11px" title="ROC > 1,000% or under 300 trading days of history (spinoff/split/recent IPO) — verify on the chart before trusting the rank">⚠ verify</span>' : ''}</td>
+        <td><b>${r.ticker}</b>${r.data_suspect ? ' <span style="color:var(--amber);font-size:11px" title="ROC > 1,000% or under 300 trading days of history (spinoff/split/recent IPO) — verify on the chart before trusting the rank">⚠ verify</span>' : ''}${r.no_signal ? ' <span class="muted" style="font-size:11px" title="No 1-yr ROC — no signal, never a candidate regardless of other gates">no signal</span>' : ''}</td>
         <td>$${r.spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td>${rocCell(r.roc_252)}</td>
         <td>${rocCell(r.roc_63)}</td>
-        <td>${r.spread.debit > 0 ? '~' + usd(r.spread.debit) : '<span class="muted">n/a</span>'}</td>
+        <td>${r.spread.debit > 0 ? `~${usd(r.spread.debit)} <span class="muted" style="font-size:11px" title="Budget-solved: widest spread whose est. debit fits ~$550 (strikes ${r.spread.long_strike}/${r.spread.short_strike})">${r.spread.width}w</span>` : '<span class="muted">n/a</span>'}</td>
         <td>${r.spread.max_profit > 0 ? '~' + usd(r.spread.max_profit) : '<span class="muted">n/a</span>'}</td>
         <td>${liqCell}</td>
         <td>${r.fits_cap ? '<span style="color:var(--green)">✓</span>'
-        : '<span style="color:var(--red)" title="Model debit over the per-position cap — a pricier spread means a smaller book, not a bigger cap">✗ over cap</span>'}</td>
+        : '<span style="color:var(--red)" title="Untradeable at this account size — even the narrowest listed width costs more than the cap">✗ untradeable</span>'}</td>
         <td class="muted">${r.theme}</td>
       </tr>`;
     }
@@ -3648,9 +3649,13 @@
       if (!rows || !d) return;
       const val = r => momoSort.k === 'debit' ? r.spread.debit
         : momoSort.k === 'max_profit' ? r.spread.max_profit : r[momoSort.k];
+      // §8.3: missing values ALWAYS sink to the bottom, whatever the direction —
+      // n/a is not "largest", it's "nothing to rank".
       const sorted = [...d.leaders].sort((a, b) => {
         const x = val(a), y = val(b);
-        const cmp = (x == null) - (y == null) || (x > y) - (x < y);
+        const xm = x == null || Number.isNaN(x), ym = y == null || Number.isNaN(y);
+        if (xm || ym) return xm - ym;
+        const cmp = (x > y) - (x < y);
         return momoSort.asc ? cmp : -cmp;
       });
       rows.innerHTML = sorted.map(r => momoRowHtml(r)).join('')

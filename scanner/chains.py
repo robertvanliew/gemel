@@ -26,9 +26,9 @@ MIN_OPEN_INTEREST = 100       # each leg
 DTE_MIN, DTE_MAX = 150, 365   # the 6-12 month expiry window (spec §2/§6)
 BUDGET = 550.0                # target ask-side debit (§8.1)
 
-_THROTTLE_S = 2.5             # min gap between chain fetches (§8.2)
-_CACHE_TTL_S = 600.0          # session cache: re-clicks don't re-fetch
-_RETRIES = 2
+_THROTTLE_S = 5.0             # min gap between chain fetches (§8.2/§8.5)
+_CACHE_TTL_S = 1800.0         # session cache: candidates + prefill read from
+_RETRIES = 2                  # this store, re-clicks never re-fetch (§8.5)
 
 _cache: dict[str, tuple[float, dict]] = {}
 _last_fetch = 0.0
@@ -56,6 +56,7 @@ def budget_spread_from_legs(
     *,
     budget: float = BUDGET,
     cap: float | None = None,
+    short_ceiling: float | None = None,
 ) -> dict[str, Any]:
     """Pick the spread from real leg quotes (§8.1) — pure, unit-testable.
 
@@ -91,9 +92,13 @@ def budget_spread_from_legs(
         return {"ok": False, "reason": "over cap — even the narrowest listed "
                 f"width costs ${debit_ask(min_leg) * 100.0:,.0f} at the ask"}
 
+    # §8.4: widen only while the debit fits AND the short strike stays under
+    # the moneyness ceiling — no lottery structures on cheap stocks.
     leg_s = min_leg
     for s in above[1:]:
         if debit_ask(s) * 100.0 > budget:
+            break
+        if short_ceiling is not None and s["strike"] > short_ceiling:
             break
         leg_s = s
 
@@ -117,16 +122,22 @@ def budget_spread_from_legs(
                   f"({'≤' if width_pct <= MAX_SPREAD_WIDTH_PCT else '>'}10%) · "
                   f"min leg OI {min_oi} "
                   f"({'≥' if min_oi >= MIN_OPEN_INTEREST else '<'}100)")
+    max_profit_mid = max_value - d_mid * 100
     return {
         "ok": True,
         "stale": stale,
         "long_strike": leg_l["strike"], "short_strike": leg_s["strike"],
         "width": round(leg_s["strike"] - leg_l["strike"], 2),
+        # per-leg prices so any row is verifiable against a broker (§8.6)
+        "long_ask": round(eff(leg_l, "ask"), 2),
+        "short_bid": round(eff(leg_s, "bid"), 2),
         "debit_mid": round(d_mid * 100, 0),
         "debit_ask": round(d_ask * 100, 0),
         "exit_bid": round(max(credit_bid, 0) * 100, 0),
         "max_value": round(max_value, 0),
-        "max_profit_mid": round(max_value - d_mid * 100, 0),
+        "max_profit_mid": round(max_profit_mid, 0),
+        # §8.4 sanity flag: payout > ~3× the debit means strikes drifted OTM
+        "rr_outsized": bool(d_mid > 0 and max_profit_mid / (d_mid * 100) > 3.0),
         "spread_width_pct": width_pct,
         "min_oi": min_oi,
         "liquid": liquid,
@@ -163,11 +174,13 @@ def _throttled_chain(ticker: str, today: date | None):
 
 def spread_quote(ticker: str, long_target: float, short_target: float | None = None,
                  *, budget: float = BUDGET, cap: float | None = None,
-                 today: date | None = None) -> dict[str, Any]:
+                 spot: float | None = None, today: date | None = None) -> dict[str, Any]:
     """Budget-solved spread on real strikes + the liquidity gate, cached per
-    session. `short_target` is accepted for compatibility but the short leg is
-    always solved from the budget (§8.1)."""
-    key = f"{ticker}:{round(long_target, 1)}:{budget}:{cap}"
+    session (§8.5 — candidates and prefill read from this store; re-clicks
+    never re-fetch). `short_target` is accepted for compatibility but the
+    short leg is solved from the budget under the §8.4 moneyness ceiling
+    (short ≤ ~20% above `spot` when given)."""
+    key = f"{ticker}:{round(long_target, 1)}:{budget}:{cap}:{round(spot or 0, 1)}"
     hit = _cache.get(key)
     if hit and time.monotonic() - hit[0] < _CACHE_TTL_S:
         return hit[1]
@@ -175,7 +188,9 @@ def spread_quote(ticker: str, long_target: float, short_target: float | None = N
     if err:
         out: dict[str, Any] = {"ok": False, "reason": err}
     else:
-        out = budget_spread_from_legs(legs, long_target, budget=budget, cap=cap)
+        ceiling = spot * 1.20 if spot else None
+        out = budget_spread_from_legs(legs, long_target, budget=budget, cap=cap,
+                                      short_ceiling=ceiling)
         if out.get("ok"):
             out["expiry"] = expiry
             out["dte"] = _dte(expiry, today or date.today())

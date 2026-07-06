@@ -172,6 +172,24 @@ def test_budget_dead_chain():
     assert budget_spread_from_legs(one, 105.0)["ok"] is False
 
 
+def test_budget_respects_moneyness_ceiling():
+    # §8.4: with a ceiling at 118, the picker must stop at 115 even though the
+    # 120 short still fits the budget.
+    q = budget_spread_from_legs(_legs(), 105.0, budget=550.0, cap=600.0,
+                                short_ceiling=118.0)
+    assert q["ok"] is True
+    assert q["short_strike"] == 115.0
+
+
+def test_budget_quote_ships_leg_prices_and_payout_flag():
+    q = budget_spread_from_legs(_legs(), 105.0, budget=550.0, cap=600.0)
+    # §8.6: per-leg prices for broker verification
+    assert q["long_ask"] == pytest.approx(10.2)
+    assert q["short_bid"] == pytest.approx(5.2)
+    # §8.4: payout flag present (this structure is ~2.1x — not outsized)
+    assert q["rr_outsized"] is False
+
+
 def test_budget_after_hours_falls_back_to_last_trade():
     """Market closed: bid/ask are 0 but lastPrice exists — Julie's Sunday
     session must still get planning numbers, flagged stale, OI-only liquidity."""

@@ -233,7 +233,8 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
             skipped.append({"ticker": r["ticker"], "why": f"theme “{r['theme']}” already at max"})
             continue
         q = spread_quote(r["ticker"], r["spread"]["long_strike"],
-                         budget=BUDGET, cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT)
+                         budget=BUDGET, cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT,
+                         spot=r["spot"])  # §8.4 moneyness ceiling on real strikes
         if not q.get("ok"):
             skipped.append({"ticker": r["ticker"], "why": q.get("reason", "chain unavailable")})
             continue

@@ -91,51 +91,64 @@ def strike_increment(spot: float) -> float:
 
 def model_spread(spot: float, sigma: float, *, budget: float = BUDGET,
                  cap: float | None = None) -> dict[str, float | bool]:
-    """Budget-solved model spread (§8.1): long leg ~5% OTM, width = the widest
-    strike-increment multiple whose BS debit fits `budget`.
+    """Budget-solved model spread (§8.1 + §8.4): long leg ~5% OTM, width = the
+    widest strike-increment multiple satisfying BOTH constraints —
+      • BS debit fits `budget` (~$550), AND
+      • short strike ≤ ~20% above spot (the moneyness ceiling — §8.4; without
+        it cheap stocks got lottery structures like OSCR's 2×-spot short leg).
 
     `untradeable` is True only when even ONE increment of width costs more
     than `cap` — that name genuinely cannot be traded at this account size.
-    Strikes are estimates on heuristic increments; chains.py prices reality.
+    `rr_outsized` flags max-profit > ~3× debit: an outsized payout means the
+    strikes drifted too far OTM — verify before trusting. Strikes are
+    estimates on heuristic increments; chains.py prices reality.
     """
     empty = {"long_strike": 0.0, "short_strike": 0.0, "width": 0.0, "debit": 0.0,
-             "max_value": 0.0, "max_profit": 0.0, "untradeable": True}
+             "long_px": 0.0, "short_px": 0.0, "max_value": 0.0, "max_profit": 0.0,
+             "untradeable": True, "rr_outsized": False}
     if spot <= 0 or sigma <= 0:
         return empty
     cap = cap if cap is not None else budget
     inc = strike_increment(spot)
     k_long = round(spot * (1 + LONG_OTM) / inc) * inc
+    ceiling = spot * (1 + SHORT_OTM)          # §8.4 moneyness ceiling
     long_px = bs_call(spot, k_long, _SPREAD_T, sigma)
 
+    def short_px_for(k_short: float) -> float:
+        return bs_call(spot, k_short, _SPREAD_T, sigma)
+
     def debit_for(k_short: float) -> float:
-        return (long_px - bs_call(spot, k_short, _SPREAD_T, sigma)) * 100.0
+        return (long_px - short_px_for(k_short)) * 100.0
+
+    def result(k_short: float, untradeable: bool) -> dict[str, float | bool]:
+        debit = debit_for(k_short)
+        max_value = (k_short - k_long) * 100.0
+        max_profit = max_value - debit
+        return {
+            "long_strike": round(k_long, 2),
+            "short_strike": round(k_short, 2),
+            "width": round(k_short - k_long, 2),
+            "debit": round(debit, 0),
+            "long_px": round(long_px, 2),
+            "short_px": round(short_px_for(k_short), 2),
+            "max_value": round(max_value, 0),
+            "max_profit": round(max_profit, 0),
+            "untradeable": untradeable,
+            "rr_outsized": bool(debit > 0 and max_profit / debit > 3.0),
+        }
 
     min_debit = debit_for(k_long + inc)
     if min_debit > cap:
-        return {**empty, "long_strike": round(k_long, 2),
-                "short_strike": round(k_long + inc, 2), "width": inc,
-                "debit": round(min_debit, 0),
-                "max_value": round(inc * 100.0, 0),
-                "max_profit": round(inc * 100.0 - min_debit, 0)}
+        return result(k_long + inc, untradeable=True)
 
-    # widen while the debit still fits the budget (debit grows with width)
+    # widen while BOTH constraints hold (debit grows with width)
     best = k_long + inc
     for n in range(2, 41):
         k = k_long + n * inc
-        if debit_for(k) > budget:
+        if k > ceiling or debit_for(k) > budget:
             break
         best = k
-    debit = debit_for(best)
-    max_value = (best - k_long) * 100.0
-    return {
-        "long_strike": round(k_long, 2),
-        "short_strike": round(best, 2),
-        "width": round(best - k_long, 2),
-        "debit": round(debit, 0),
-        "max_value": round(max_value, 0),
-        "max_profit": round(max_value - debit, 0),
-        "untradeable": False,
-    }
+    return result(best, untradeable=False)
 
 
 def rank_row(ticker: str, closes, *, cap_dollars: float) -> dict[str, Any] | None:

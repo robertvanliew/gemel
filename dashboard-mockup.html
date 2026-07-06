@@ -3628,13 +3628,13 @@
         ? `<span style="color:var(--green)" title="${liq.liquidity_detail}">✓ liquid</span>`
         : `<span style="color:var(--red)" title="${liq.liquidity_detail || liq.reason}">✗ watchlist only</span>`)
         : '<span class="muted">—</span>';
-      return `<tr${extra || ''}>
+      return `<tr data-expand="${r.ticker}" style="cursor:pointer" title="Click to see the modeled contract — verifiable against your broker">
         <td class="muted">${r.rank}</td>
-        <td><b>${r.ticker}</b>${r.data_suspect ? ' <span style="color:var(--amber);font-size:11px" title="ROC > 1,000% or under 300 trading days of history (spinoff/split/recent IPO) — verify on the chart before trusting the rank">⚠ verify</span>' : ''}${r.no_signal ? ' <span class="muted" style="font-size:11px" title="No 1-yr ROC — no signal, never a candidate regardless of other gates">no signal</span>' : ''}</td>
+        <td><b>${r.ticker}</b>${r.data_suspect ? ' <span style="color:var(--amber);font-size:11px" title="ROC > 1,000% or under 300 trading days of history (spinoff/split/recent IPO) — verify on the chart before trusting the rank">⚠ verify</span>' : ''}${r.no_signal ? ' <span class="muted" style="font-size:11px" title="No 1-yr ROC — no signal, never a candidate regardless of other gates">no signal</span>' : ''}${r.spread.rr_outsized ? ' <span style="color:var(--amber);font-size:11px" title="Max profit over ~3× the debit — outsized payout means the strikes drifted too far OTM; verify the structure before trusting it">⚠ payout</span>' : ''}</td>
         <td>$${r.spot.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td>${rocCell(r.roc_252)}</td>
         <td>${rocCell(r.roc_63)}</td>
-        <td>${r.spread.debit > 0 ? `~${usd(r.spread.debit)} <span class="muted" style="font-size:11px" title="Budget-solved: widest spread whose est. debit fits ~$550 (strikes ${r.spread.long_strike}/${r.spread.short_strike})">${r.spread.width}w</span>` : '<span class="muted">n/a</span>'}</td>
+        <td>${r.spread.debit > 0 ? `~${usd(r.spread.debit)} <span class="muted" style="font-size:11px">${r.spread.width}w</span>` : '<span class="muted">n/a</span>'}</td>
         <td>${r.spread.max_profit > 0 ? '~' + usd(r.spread.max_profit) : '<span class="muted">n/a</span>'}</td>
         <td>${liqCell}</td>
         <td>${r.fits_cap ? '<span style="color:var(--green)">✓</span>'
@@ -3660,6 +3660,29 @@
       });
       rows.innerHTML = sorted.map(r => momoRowHtml(r)).join('')
         || '<tr><td colspan="10" class="softtext">No names could be ranked.</td></tr>';
+      // §8.6: click a row -> the modeled contract, leg by leg, verifiable
+      // against thinkorswim in under a minute.
+      rows.querySelectorAll('tr[data-expand]').forEach(tr => tr.addEventListener('click', () => {
+        const open = tr.nextElementSibling && tr.nextElementSibling.classList.contains('momo-detail');
+        rows.querySelectorAll('.momo-detail').forEach(x => x.remove());
+        if (open) return;                         // second click collapses
+        const r = (window.__momo.leaders).find(l => l.ticker === tr.dataset.expand);
+        if (!r || !(r.spread.debit > 0)) return;
+        const q = momoLiquidity[r.ticker];        // real chain quote if checked
+        const real = q && q.ok !== false && q.long_ask != null;
+        const sp = r.spread;
+        const legs = real
+          ? { l: q.long_strike, s: q.short_strike, lp: q.long_ask, sp2: q.short_bid, debit: q.debit_ask, mv: q.max_value, exp: `${q.expiry} (${q.dte} DTE)${q.stale ? ' · priced at last trade — market closed' : ''}`, src: 'real chain' }
+          : { l: sp.long_strike, s: sp.short_strike, lp: sp.long_px, sp2: sp.short_px, debit: sp.debit, mv: sp.max_value, exp: 'nearest monthly in the 6–12 month window (est. ~9 months)', src: 'Black-Scholes estimate' };
+        tr.insertAdjacentHTML('afterend', `<tr class="momo-detail"><td colspan="10" style="background:var(--panel2);font-size:12.5px;padding:12px 16px">
+          <b>Modeled contract (${legs.src})</b> — expiry: ${legs.exp}<br>
+          <span style="display:inline-block;margin-top:6px">
+          BUY &nbsp;${r.ticker} ${legs.l} call &nbsp;≈ $${(+legs.lp).toFixed(2)}/sh (ask) &nbsp;·&nbsp;
+          SELL ${r.ticker} ${legs.s} call &nbsp;≈ $${(+legs.sp2).toFixed(2)}/sh (bid)<br>
+          Net debit ≈ <b>${usd(legs.debit)}</b> &nbsp;·&nbsp;
+          max profit = width × 100 − debit = ${(legs.s - legs.l).toFixed(1)} × 100 − ${usd(legs.debit)} = <b>${usd(legs.mv - legs.debit)}</b>
+          &nbsp;·&nbsp; max loss = the debit</span></td></tr>`);
+      }));
     }
     document.querySelectorAll('#momo-thead th[data-k]').forEach(th => th.addEventListener('click', () => {
       const k = th.dataset.k;

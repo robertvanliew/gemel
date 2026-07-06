@@ -104,6 +104,22 @@ def test_model_spread_degenerate_inputs():
     assert model_spread(100.0, 0.0)["untradeable"] is True
 
 
+def test_model_spread_moneyness_ceiling_on_cheap_stock():
+    # §8.4: OSCR-style — $32 stock, huge budget headroom. Without the ceiling
+    # the width ran to ~2× spot; with it the short leg stays ≤ ~20% above.
+    sp = model_spread(32.0, 0.60, budget=550.0, cap=600.0)
+    assert sp["untradeable"] is False
+    assert sp["short_strike"] <= 32.0 * 1.20 + 2.5   # ceiling (+1 increment tolerance)
+    assert sp["rr_outsized"] is False or sp["max_profit"] / sp["debit"] > 3.0
+
+
+def test_model_spread_exposes_leg_prices_for_verification():
+    # §8.6: rows must be verifiable against a broker — leg prices ship.
+    sp = model_spread(100.0, 0.30, budget=550.0, cap=600.0)
+    assert sp["long_px"] > sp["short_px"] > 0
+    assert sp["debit"] == pytest.approx((sp["long_px"] - sp["short_px"]) * 100, abs=1.0)
+
+
 # ── momentum_leaders ────────────────────────────────────────────────────────
 
 def test_leaders_ranked_by_momentum(report):

@@ -2486,6 +2486,7 @@
           <div class="row"><span class="muted" id="momo-lastrun"></span><button class="btn" id="mom-run">Rank now</button></div>
         </div>
 
+        <div class="banner" id="momo-gate" style="display:none"></div>
         <div class="banner" id="momo-playbook">Playbook rules load with the first ranking…</div>
         <div class="banner warn" id="momo-rerank" style="display:none"></div>
 
@@ -3613,6 +3614,37 @@
     const usd = v => '$' + Math.round(v).toLocaleString();
     let momoLiquidity = {};   // ticker -> quote, filled by Find candidates
 
+    // §9: the momentum playbook's one regime rule — checked at the monthly
+    // session (and on page load), never an intraday alarm.
+    function renderGate(g) {
+      const el = document.getElementById('momo-gate');
+      if (!el || !g) return;
+      el.style.display = '';
+      if (g.open) {
+        el.style.background = ''; el.style.borderColor = ''; el.style.color = '';
+        el.innerHTML = `<b style="color:var(--green)">Regime gate open</b> — SPY at
+          ${g.pct_of_high != null ? g.pct_of_high + '% of its 1-yr high' : 'gate defaults open'}
+          (rule: closes below 92% shut the month to new entries).`;
+      } else {
+        el.style.background = '#fdecea'; el.style.borderColor = '#f5c6c0'; el.style.color = '#8a2a1d';
+        el.innerHTML = `<b>Regime gate closed</b> — SPY is ${g.pct_below}% below its 1-yr high.
+          <b>No new entries this month.</b> Existing positions keep their normal exits
+          (75% of max value / re-rank signal / &lt;45 DTE). Cash is a position.`;
+      }
+      window.__momoGate = g;
+    }
+
+    // §8.7: the cap verdict comes ONLY from a real fetched chain. Until Find
+    // candidates loads one for a name, the honest answer is "no data".
+    function capVerdict(ticker) {
+      const q = momoLiquidity[ticker];
+      if (q && q.ok !== false && q.long_ask != null)
+        return { s: 2, html: '<span style="color:var(--green)" title="Real chain: a width fits the cap at the ask' + (q.stale ? ' (priced at last trade — market closed)' : '') + '">✓</span>' };
+      if (q && q.ok === false && (q.reason || '').startsWith('over cap'))
+        return { s: 0, html: '<span style="color:var(--red)" title="' + q.reason + ' — from actual listed strikes">✗ untradeable</span>' };
+      return { s: 1, html: '<span class="muted" title="No chain fetched yet — run Find candidates. A verdict needs real strikes; increments are never guessed (§8.7)">no data</span>' };
+    }
+
     function renderPlaybookBanner(pb) {
       const el = document.getElementById('momo-playbook');
       if (el && pb) el.innerHTML = `<b>Active rules:</b> $${pb.account_size.toLocaleString()} momentum account ·
@@ -3637,8 +3669,7 @@
         <td>${r.spread.debit > 0 ? `~${usd(r.spread.debit)} <span class="muted" style="font-size:11px">${r.spread.width}w</span>` : '<span class="muted">n/a</span>'}</td>
         <td>${r.spread.max_profit > 0 ? '~' + usd(r.spread.max_profit) : '<span class="muted">n/a</span>'}</td>
         <td>${liqCell}</td>
-        <td>${r.fits_cap ? '<span style="color:var(--green)">✓</span>'
-        : '<span style="color:var(--red)" title="Untradeable at this account size — even the narrowest listed width costs more than the cap">✗ untradeable</span>'}</td>
+        <td>${capVerdict(r.ticker).html}</td>
         <td class="muted">${r.theme}</td>
       </tr>`;
     }
@@ -3648,7 +3679,8 @@
       const rows = document.getElementById('mom-rows'), d = window.__momo;
       if (!rows || !d) return;
       const val = r => momoSort.k === 'debit' ? r.spread.debit
-        : momoSort.k === 'max_profit' ? r.spread.max_profit : r[momoSort.k];
+        : momoSort.k === 'max_profit' ? r.spread.max_profit
+          : momoSort.k === 'fits_cap' ? capVerdict(r.ticker).s : r[momoSort.k];
       // §8.3: missing values ALWAYS sink to the bottom, whatever the direction —
       // n/a is not "largest", it's "nothing to rank".
       const sorted = [...d.leaders].sort((a, b) => {
@@ -3702,6 +3734,7 @@
           window.__momo = d;
           momoSort = { k: 'rank', asc: true };  // Rank now resets exploration sorts
           renderPlaybookBanner(d.playbook);
+          renderGate(d.regime_gate);            // §9: gate check comes first
           renderMomoTable();
           const lr = document.getElementById('momo-lastrun');
           if (lr) lr.textContent = 'Ranked: ' + new Date().toLocaleDateString();
@@ -3745,8 +3778,19 @@
       fetch('/api/momentum/candidates')
         .then(r => { if (!r.ok) throw new Error('no api'); return r.json(); })
         .then(d => {
+          if (d.gate && !d.gate.open) {   // §9: closed month — no candidates, say why
+            renderGate(d.gate);
+            rows.innerHTML = `<tr><td colspan="9" class="softtext"><b>Regime gate closed</b> — SPY is
+              ${d.gate.pct_below}% below its 1-yr high. No new entries this month. Cash is a position.</td></tr>`;
+            return;
+          }
           d.candidates.forEach(c => momoLiquidity[c.ticker] = c.quote);
-          (d.skipped || []).forEach(s => { if (s.why.startsWith('illiquid')) momoLiquidity[s.ticker] = { liquid: false, reason: s.why }; });
+          // §8.7: skipped rows carry their real-chain quote (when one exists) so
+          // the table can show a real "over cap" verdict vs honest "no data".
+          (d.skipped || []).forEach(s => {
+            if (s.quote) momoLiquidity[s.ticker] = s.quote;
+            else if (s.why.startsWith('illiquid')) momoLiquidity[s.ticker] = { liquid: false, reason: s.why };
+          });
           renderMomoTable();
           rows.innerHTML = d.candidates.length ? d.candidates.map(c => `<tr>
               <td class="muted">${c.rank}</td><td><b>${c.ticker}</b>${c.data_suspect ? ' <span style="color:var(--amber)">⚠</span>' : ''}</td>
@@ -3823,6 +3867,7 @@
         .then(b => {
           window.__momoBook = b;
           renderPlaybookBanner(b.playbook);
+          renderGate(b.regime_gate);   // gate shows on page load, before any ranking
           // theme exposure meter
           const exp = document.getElementById('momo-exposure');
           exp.innerHTML = (b.themes.length ? b.themes.map(t =>

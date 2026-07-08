@@ -12,6 +12,7 @@ from scanner.momentum import (
     model_spread,
     momentum_leaders,
     rank_row,
+    regime_gate,
     roc,
 )
 
@@ -158,9 +159,43 @@ def test_extreme_roc_flagged_data_suspect(report):
 def test_cap_is_momentum_playbook_cap(report):
     # $4k account x 15% = $600 per position — NOT the credit playbook's 2%.
     assert report["cap_dollars"] == pytest.approx(600.0)
-    # §8.1: fits_cap now means "some width is tradable", i.e. not untradeable.
+    # §8.7: the model produces an ESTIMATE flag only — the authoritative
+    # verdict comes from a real chain; without one the UI shows "no data".
     for r in report["leaders"]:
-        assert r["fits_cap"] == (not r["spread"]["untradeable"])
+        assert r["fits_cap_est"] == (not r["spread"]["untradeable"])
+        assert "fits_cap" not in r   # the old confident field is gone
+
+
+# ── regime_gate (§9) ────────────────────────────────────────────────────────
+
+def _spy(closes):
+    idx = pd.bdate_range(start=datetime.date(2024, 1, 2), periods=len(closes))
+    return pd.Series(closes, index=idx, dtype=float)
+
+
+def test_gate_open_at_or_above_92pct_of_high():
+    g = regime_gate(_spy([500.0] * 260 + [465.0]))   # 93% of the 500 high
+    assert g["open"] is True
+    assert g["pct_of_high"] == pytest.approx(93.0)
+
+
+def test_gate_closed_below_92pct_of_high():
+    g = regime_gate(_spy([500.0] * 260 + [455.0]))   # 91% of the 500 high
+    assert g["open"] is False
+    assert g["pct_below"] == pytest.approx(9.0)
+
+
+def test_gate_uses_trailing_252d_high_only():
+    # An older, higher high outside the window must not count.
+    closes = [600.0] * 50 + [500.0] * 252 + [470.0]  # 600 is >252 bars back
+    g = regime_gate(_spy(closes))
+    assert g["yr_high"] == pytest.approx(500.0)
+    assert g["open"] is True                          # 94% of 500
+
+
+def test_gate_defaults_open_on_thin_history():
+    g = regime_gate(_spy([500.0] * 5))
+    assert g["open"] is True and "defaults open" in g.get("reason", "")
 
 
 def test_rank_row_theme_tags():

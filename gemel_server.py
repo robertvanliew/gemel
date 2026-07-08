@@ -26,7 +26,8 @@ from market.service import compute_breadth
 from momo import book as momo_book
 from momo import service as momo_rules
 from scanner.chains import mark_spread, spread_quote
-from scanner.momentum import BUDGET, RR_FLOOR, momentum_leaders, rank_row
+from scanner.momentum import (BUDGET, RR_FLOOR, momentum_leaders, rank_row,
+                              regime_gate)
 from scanner.scan import run_scan
 
 ROOT = Path(__file__).resolve().parent
@@ -150,6 +151,23 @@ def backtest_momentum(years: int = 3, top_n: int | None = None,
     return JSONResponse(result)
 
 
+# §9 regime gate, cached ~1h — a monthly decision input, never an intraday alarm.
+_gate_cache: dict = {"t": 0.0, "gate": None}
+
+
+def _regime_gate() -> dict:
+    import time as _time
+    if _gate_cache["gate"] is not None and _time.monotonic() - _gate_cache["t"] < 3600:
+        return _gate_cache["gate"]
+    try:
+        closes = make_adapter().get_daily_bars("SPY", lookback_days=400)["close"]
+        gate = regime_gate(closes)
+    except Exception:
+        gate = {"open": True, "reason": "SPY data unavailable — gate defaults open"}
+    _gate_cache.update(t=_time.monotonic(), gate=gate)
+    return gate
+
+
 def _playbook_config() -> dict:
     """The momentum playbook's active rules — displayed on its page so the
     cap in force is never ambiguous (spec §0)."""
@@ -179,6 +197,7 @@ def momentum(tickers: str | None = None) -> JSONResponse:
                               account_size=MOMENTUM_ACCOUNT_SIZE,
                               cap_pct=momo_rules.CAP_PCT)
     report["playbook"] = _playbook_config()
+    report["regime_gate"] = _regime_gate()
     return JSONResponse(report)
 
 
@@ -205,6 +224,12 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
     pass, ≤2 per theme counting current holdings — down to ≤7, with proposed
     strikes and est. debit. Suggested for review, not execution. Slow (~10-30s):
     fetches real option chains for the names that survive the cheap gates."""
+    # §9: gate CLOSED means no new spreads this month — don't even fetch chains.
+    gate = _regime_gate()
+    if not gate.get("open", True):
+        return JSONResponse({"candidates": [], "skipped": [], "gate": gate,
+                             "playbook": _playbook_config()})
+
     report = momentum_leaders(make_adapter(),
                               account_size=MOMENTUM_ACCOUNT_SIZE,
                               cap_pct=momo_rules.CAP_PCT)
@@ -217,6 +242,8 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
     candidates, skipped = [], []
     # §8.2: chains only for the top ~10 ranked names — ranking needs stock
     # prices only, and each chain fetch is throttled/rate-limit-prone.
+    # §8.7: NO pre-gate on the model's fits_cap estimate — its increments are
+    # guesses. The real chain is the only source of an untradeable verdict.
     pool = [r for r in report["leaders"] if r["ticker"] not in held_tickers][:10]
     for r in pool:
         if len(candidates) >= momo_rules.MAX_POSITIONS:
@@ -225,10 +252,6 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
         if r["no_signal"]:
             skipped.append({"ticker": r["ticker"], "why": "no 1-yr ROC — no signal to rank on"})
             continue
-        if not r["fits_cap"]:
-            skipped.append({"ticker": r["ticker"],
-                            "why": "untradeable — even the minimum width is over the cap"})
-            continue
         if theme_counts.get(r["theme"], 0) >= momo_rules.MAX_PER_THEME:
             skipped.append({"ticker": r["ticker"], "why": f"theme “{r['theme']}” already at max"})
             continue
@@ -236,23 +259,27 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
                          budget=BUDGET, cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT,
                          spot=r["spot"])  # §8.4 moneyness ceiling on real strikes
         if not q.get("ok"):
-            skipped.append({"ticker": r["ticker"], "why": q.get("reason", "chain unavailable")})
+            # quote ships with the skip so the table can render the real
+            # verdict ("over cap" from actual strikes) vs plain "no data" (§8.7)
+            skipped.append({"ticker": r["ticker"], "why": q.get("reason", "chain unavailable"),
+                            "quote": q})
             continue
         if not q["liquid"]:
-            skipped.append({"ticker": r["ticker"], "why": f"illiquid — {q['liquidity_detail']}"})
+            skipped.append({"ticker": r["ticker"], "why": f"illiquid — {q['liquidity_detail']}",
+                            "quote": q})
             continue
         # §2: reward-to-risk FLOOR — a pass/fail structure check only. Selection
         # order stays momentum rank; max profit must never rank or reorder.
         if q["max_profit_mid"] < RR_FLOOR * q["debit_mid"]:
             skipped.append({"ticker": r["ticker"],
                             "why": f"reward/risk {q['max_profit_mid'] / q['debit_mid']:.1f}× "
-                                   f"below the {RR_FLOOR}× floor"})
+                                   f"below the {RR_FLOOR}× floor", "quote": q})
             continue
         theme_counts[r["theme"]] = theme_counts.get(r["theme"], 0) + 1
         candidates.append({**{k: r[k] for k in ("rank", "ticker", "theme", "spot",
                                                 "roc_252", "roc_63", "data_suspect")},
                            "quote": q})
-    return JSONResponse({"candidates": candidates, "skipped": skipped,
+    return JSONResponse({"candidates": candidates, "skipped": skipped, "gate": gate,
                          "playbook": _playbook_config()})
 
 
@@ -331,12 +358,20 @@ def momo_book_view(ranks: str | None = None,
             [{"realized_pnl": p.realized_pnl or 0.0, "rule_triggered": p.rule_triggered}
              for p in closed]),
         "playbook": _playbook_config(),
+        "regime_gate": _regime_gate(),
     })
 
 
 @app.post("/api/momo/open")
 def momo_open(body: MomoOpenBody, session: Session = Depends(get_session)) -> dict:
     """Open a paper spread — every playbook rule enforced server-side."""
+    gate = _regime_gate()  # §9: closed gate = no new spreads this month
+    if not gate.get("open", True):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Regime gate closed — SPY is {gate.get('pct_below', '?')}% below its "
+                   "1-yr high. No new entries this month; existing positions keep their "
+                   "exits. Cash is a position.")
     open_dicts = [{"entry_debit": p.entry_debit, "theme": p.theme}
                   for p in momo_book.list_open(session)]
     violations = momo_rules.entry_violations(

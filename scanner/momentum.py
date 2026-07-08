@@ -172,9 +172,32 @@ def rank_row(ticker: str, closes, *, cap_dollars: float) -> dict[str, Any] | Non
         "data_suspect": (len(closes) < _MIN_HISTORY
                          or (r252 is not None and r252 > _SUSPECT_ROC)),
         "spread": sp,
-        # §8.1: over cap only when even the minimum width doesn't fit —
-        # genuinely untradeable at this account size.
-        "fits_cap": not sp["untradeable"],
+        # §8.7: the model's increments are heuristic GUESSES — good enough for
+        # a cost estimate, never for a verdict. fits_cap_est is planning color;
+        # the authoritative cap verdict comes only from a real fetched chain
+        # (chains.py), and until one loads the answer is "no data".
+        "fits_cap_est": not sp["untradeable"],
+    }
+
+
+def regime_gate(spy_closes) -> dict[str, Any]:
+    """§9 — the momentum playbook's one regime rule (v1, deliberately single):
+    gate OPEN while SPY's close is ≥ 92% of its highest close over the
+    trailing 252 trading days; CLOSED when more than 8% off that high.
+    Closed = no NEW spreads this month; existing positions keep their exits.
+    """
+    closes = spy_closes.tail(_ROC_LONG)
+    if len(closes) < 20:
+        return {"open": True, "reason": "insufficient SPY history — gate defaults open"}
+    high = float(closes.max())
+    last = float(closes.iloc[-1])
+    pct_of_high = last / high * 100.0
+    return {
+        "open": pct_of_high >= 92.0,
+        "spy_close": round(last, 2),
+        "yr_high": round(high, 2),
+        "pct_of_high": round(pct_of_high, 1),
+        "pct_below": round(100.0 - pct_of_high, 1),
     }
 
 

@@ -1,23 +1,24 @@
-"""Real option-chain quotes + the liquidity gate (spec §3), via yfinance.
+"""Option-spread quotes + the liquidity gate (spec §3), read from the
+disk-backed chain store (§8.5 rework — scanner/chain_store.py).
 
-Momentum in the stock ≠ liquid options — especially 6-12 months out, where a
-wide market can eat 15-20% of a small spread round-trip. The gate (both
-required, measured on the chosen spread's two legs):
+Chains touch the network in exactly ONE place: the monthly refresh job in
+chain_store. This module only READS saved files, so quoting a spread is
+instant and can never be rate-limited. A missing chain returns "no saved
+chain — run the monthly chain refresh first" — an actionable message, never
+a verdict about the name (§8.7).
+
+The liquidity gate (both required, measured on the chosen spread's two legs):
   • net bid/ask width ≤ 10% of mid
   • open interest ≥ 100 contracts on EACH leg
 Fail either → the name still ranks, flagged "illiquid — watchlist only."
 
 §8.1: the short leg is solved from the BUDGET on real strikes — the widest
 spread whose ask-side debit fits ~$550 — not a fixed % of price.
-§8.2: yfinance rate-limiting is handled here: ≥2.5s between chain fetches,
-2 retries with exponential backoff, and a per-session cache so re-clicks
-don't re-fetch. Failures stay fail-closed with the reason displayed.
 
 OI is previous-close data intraday; that's accepted.
 """
 from __future__ import annotations
 
-import time
 from datetime import date, datetime
 from typing import Any
 
@@ -25,13 +26,6 @@ MAX_SPREAD_WIDTH_PCT = 10.0   # net bid/ask width vs mid
 MIN_OPEN_INTEREST = 100       # each leg
 DTE_MIN, DTE_MAX = 150, 365   # the 6-12 month expiry window (spec §2/§6)
 BUDGET = 550.0                # target ask-side debit (§8.1)
-
-_THROTTLE_S = 5.0             # min gap between chain fetches (§8.2/§8.5)
-_CACHE_TTL_S = 1800.0         # session cache: candidates + prefill read from
-_RETRIES = 2                  # this store, re-clicks never re-fetch (§8.5)
-
-_cache: dict[str, tuple[float, dict]] = {}
-_last_fetch = 0.0
 
 
 def _dte(expiry: str, today: date) -> int:
@@ -145,97 +139,75 @@ def budget_spread_from_legs(
     }
 
 
-def _throttled_chain(ticker: str, today: date | None):
-    """Fetch (expiry, calls-legs) with throttle + retry/backoff (§8.2)."""
-    global _last_fetch
-    import yfinance as yf
-    last_err: Exception | None = None
-    for attempt in range(_RETRIES + 1):
-        wait = _THROTTLE_S - (time.monotonic() - _last_fetch)
-        if wait > 0:
-            time.sleep(wait)
-        try:
-            _last_fetch = time.monotonic()
-            tk = yf.Ticker(ticker)
-            expiry = pick_expiry(list(tk.options or []), today)
-            if not expiry:
-                return None, None, f"no listed expiry {DTE_MIN}-{DTE_MAX} DTE"
-            calls = tk.option_chain(expiry).calls
-            legs = [{"strike": float(r["strike"]), "bid": float(r.get("bid") or 0.0),
-                     "ask": float(r.get("ask") or 0.0), "oi": int(r.get("openInterest") or 0),
-                     "last": float(r.get("lastPrice") or 0.0)}
-                    for _, r in calls.iterrows()]
-            return expiry, legs, None
-        except Exception as ex:              # includes YFRateLimitError
-            last_err = ex
-            time.sleep(3 * (2 ** attempt))   # 3s, 6s, 12s backoff
-    return None, None, f"chain unavailable after retries ({type(last_err).__name__})"
+def _stored_legs(ticker: str, today: date | None):
+    """(expiry, legs, err) from the SAVED chain — zero network (§8.5)."""
+    from scanner import chain_store
+    st = chain_store.StoredTicker(ticker)
+    try:
+        exps = st.options
+    except ValueError as ex:
+        return None, None, str(ex)
+    expiry = pick_expiry(exps, today)
+    if not expiry:
+        return None, None, (f"no saved expiry {DTE_MIN}-{DTE_MAX} DTE — "
+                            "run the chain refresh")
+    calls = st.option_chain(expiry).calls
+    legs = [{"strike": float(r["strike"]), "bid": float(r.get("bid") or 0.0),
+             "ask": float(r.get("ask") or 0.0), "oi": int(r.get("openInterest") or 0),
+             "last": float(r.get("lastPrice") or 0.0)}
+            for _, r in calls.iterrows()]
+    return expiry, legs, None
 
 
 def spread_quote(ticker: str, long_target: float, short_target: float | None = None,
                  *, budget: float = BUDGET, cap: float | None = None,
                  spot: float | None = None, today: date | None = None) -> dict[str, Any]:
-    """Budget-solved spread on real strikes + the liquidity gate, cached per
-    session (§8.5 — candidates and prefill read from this store; re-clicks
-    never re-fetch). `short_target` is accepted for compatibility but the
-    short leg is solved from the budget under the §8.4 moneyness ceiling
-    (short ≤ ~20% above `spot` when given)."""
-    key = f"{ticker}:{round(long_target, 1)}:{budget}:{cap}:{round(spot or 0, 1)}"
-    hit = _cache.get(key)
-    if hit and time.monotonic() - hit[0] < _CACHE_TTL_S:
-        return hit[1]
-    expiry, legs, err = _throttled_chain(ticker, today)
+    """Budget-solved spread on real saved strikes + the liquidity gate.
+    Reads the disk store only — instant, never rate-limited (§8.5).
+    `short_target` is accepted for compatibility but the short leg is solved
+    from the budget under the §8.4 moneyness ceiling (short ≤ ~20% above
+    `spot` when given)."""
+    expiry, legs, err = _stored_legs(ticker, today)
     if err:
-        out: dict[str, Any] = {"ok": False, "reason": err}
-    else:
-        ceiling = spot * 1.20 if spot else None
-        out = budget_spread_from_legs(legs, long_target, budget=budget, cap=cap,
-                                      short_ceiling=ceiling)
-        if out.get("ok"):
-            out["expiry"] = expiry
-            out["dte"] = _dte(expiry, today or date.today())
-    _cache[key] = (time.monotonic(), out)
+        return {"ok": False, "reason": err}
+    ceiling = spot * 1.20 if spot else None
+    out = budget_spread_from_legs(legs, long_target, budget=budget, cap=cap,
+                                  short_ceiling=ceiling)
+    if out.get("ok"):
+        out["expiry"] = expiry
+        out["dte"] = _dte(expiry, today or date.today())
     return out
 
 
 def mark_spread(ticker: str, long_strike: float, short_strike: float,
                 expiry: str) -> dict[str, Any]:
     """Current value of an OPEN spread at exit-side marks (sell long at bid,
-    buy short back at ask) — what closing now would actually fetch. Cached
-    briefly; throttled like every other chain call."""
-    key = f"mark:{ticker}:{long_strike}:{short_strike}:{expiry}"
-    hit = _cache.get(key)
-    if hit and time.monotonic() - hit[0] < 120.0:   # marks stay fresher
-        return hit[1]
-    global _last_fetch
+    buy short back at ask) — what closing now would actually fetch. Reads the
+    saved chain: held expiries are always included in the refresh
+    (must_include), and a mark is only as fresh as the last refresh — the UI
+    labels it with the store's 'chains as of' stamp."""
+    from scanner import chain_store
     try:
-        import yfinance as yf
-        wait = _THROTTLE_S - (time.monotonic() - _last_fetch)
-        if wait > 0:
-            time.sleep(wait)
-        _last_fetch = time.monotonic()
-        calls = yf.Ticker(ticker).option_chain(expiry).calls
-        def leg(k):
-            row = calls[calls["strike"] == k]
-            if row.empty:
-                return None
-            r = row.iloc[0]
-            return {"bid": float(r.get("bid") or 0.0), "ask": float(r.get("ask") or 0.0),
-                    "last": float(r.get("lastPrice") or 0.0)}
-        leg_l, leg_s = leg(long_strike), leg(short_strike)
-        # After hours bid/ask are 0 — mark at the last trade instead (flagged stale).
-        eff = lambda l, s: l[s] if l and l[s] > 0 else (l.get("last") if l else 0.0)
-        if not leg_l or not leg_s or eff(leg_l, "ask") <= 0:
-            out = {"ok": False, "reason": "leg quote unavailable"}
-        else:
-            stale = leg_l["bid"] <= 0 or leg_s["ask"] <= 0
-            value_bid = max(eff(leg_l, "bid") - eff(leg_s, "ask"), 0.0)
-            value_mid = max((eff(leg_l, "bid") + eff(leg_l, "ask")) / 2
-                            - (eff(leg_s, "bid") + eff(leg_s, "ask")) / 2, 0.0)
-            out = {"ok": True, "stale": stale,
-                   "value_bid": round(value_bid * 100, 0),
-                   "value_mid": round(value_mid * 100, 0)}
-    except Exception as ex:
-        out = {"ok": False, "reason": f"chain unavailable ({type(ex).__name__})"}
-    _cache[key] = (time.monotonic(), out)
-    return out
+        st = chain_store.StoredTicker(ticker)
+        calls = st.option_chain(expiry).calls
+    except ValueError as ex:
+        return {"ok": False, "reason": str(ex)}
+    def leg(k):
+        row = calls[calls["strike"] == k]
+        if row.empty:
+            return None
+        r = row.iloc[0]
+        return {"bid": float(r.get("bid") or 0.0), "ask": float(r.get("ask") or 0.0),
+                "last": float(r.get("lastPrice") or 0.0)}
+    leg_l, leg_s = leg(long_strike), leg(short_strike)
+    # After-hours snapshots have bid/ask 0 — mark at the last trade (flagged stale).
+    eff = lambda l, s: l[s] if l and l[s] > 0 else (l.get("last") if l else 0.0)
+    if not leg_l or not leg_s or eff(leg_l, "ask") <= 0:
+        return {"ok": False, "reason": "strikes not in the saved chain — re-run the refresh"}
+    stale = leg_l["bid"] <= 0 or leg_s["ask"] <= 0
+    value_bid = max(eff(leg_l, "bid") - eff(leg_s, "ask"), 0.0)
+    value_mid = max((eff(leg_l, "bid") + eff(leg_l, "ask")) / 2
+                    - (eff(leg_s, "bid") + eff(leg_s, "ask")) / 2, 0.0)
+    return {"ok": True, "stale": stale,
+            "value_bid": round(value_bid * 100, 0),
+            "value_mid": round(value_mid * 100, 0)}

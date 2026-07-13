@@ -2483,7 +2483,12 @@
             <div class="sub">21-name watchlist · call debit spreads · monthly re-rank · <b>15% per-position cap</b>
               (own playbook — not the credit side's 2%).</div>
           </div>
-          <div class="row"><span class="muted" id="momo-lastrun"></span><button class="btn" id="mom-run">Rank now</button></div>
+          <div class="row" style="gap:8px;align-items:center">
+            <span class="muted" id="momo-lastrun"></span>
+            <span class="muted" id="momo-chainstat" style="font-size:12px"></span>
+            <button class="btn ghost" id="momo-chains" title="The one place chains touch the network — a deliberate monthly job (2-10 min). Fetches the top 10 + every held name to disk; everything else reads the saved copy.">Refresh chains</button>
+            <button class="btn" id="mom-run">Rank now</button>
+          </div>
         </div>
 
         <div class="banner" id="momo-gate" style="display:none"></div>
@@ -2497,8 +2502,9 @@
             </span>
             <button class="btn ghost" id="momo-cand-btn" style="font-size:12px">Find candidates</button>
           </h3>
-          <div id="momo-cand-note" class="softtext" style="margin-bottom:10px">Run after <b>Rank now</b> — fetches real
-            option chains for the gated names (~10-30s).</div>
+          <div id="momo-cand-note" class="softtext" style="margin-bottom:10px">Monthly order: <b>Rank now</b> →
+            <b>Refresh chains</b> (walk away a few minutes) → <b>Find candidates</b> (instant — reads the saved chains).</div>
+          <div id="momo-chains-asof" class="muted" style="font-size:12px;margin-bottom:8px"></div>
           <table>
             <thead>
               <tr><th>#</th><th>Ticker</th><th>Theme</th><th>Strikes</th><th>Expiry</th><th>Debit (ask)</th>
@@ -3746,6 +3752,52 @@
     const momBtn = document.getElementById('mom-run');
     if (momBtn) momBtn.addEventListener('click', loadMomentum);
 
+    // §8.5: the deliberate monthly chain-refresh job — POST once, poll status.
+    function chainsAsOf(ch) {
+      const el = document.getElementById('momo-chains-asof');
+      if (!el) return;
+      el.textContent = ch && ch.newest
+        ? `Chains as of ${new Date(ch.newest).toLocaleString()} · ${ch.count} names saved`
+        : 'No saved chains yet — run Refresh chains.';
+    }
+    const chainsBtn = document.getElementById('momo-chains');
+    const chainStat = document.getElementById('momo-chainstat');
+    let chainPoll = null;
+    function pollChains() {
+      fetch('/api/momentum/chains/status')
+        .then(r => r.json())
+        .then(s => {
+          if (s.job.state === 'running') {
+            chainStat.textContent = `Fetching chains ${s.job.done}/${s.job.total}` +
+              (s.job.current ? ` · ${s.job.current}` : '') + '…';
+          } else {
+            clearInterval(chainPoll); chainPoll = null;
+            if (chainsBtn) { chainsBtn.disabled = false; chainsBtn.textContent = 'Refresh chains'; }
+            if (s.job.state === 'done') {
+              const bad = Object.entries(s.job.results || {}).filter(([, r]) => !r.ok);
+              chainStat.textContent = `Chains saved (${s.store.count} names` +
+                (bad.length ? `; failed: ${bad.map(([t]) => t).join(', ')}` : '') + ') — run Find candidates.';
+            } else { chainStat.textContent = ''; }
+            chainsAsOf(s.store);
+          }
+        }).catch(() => { });
+    }
+    if (chainsBtn) chainsBtn.addEventListener('click', () => {
+      chainsBtn.disabled = true; chainsBtn.textContent = 'Refreshing…';
+      chainStat.textContent = 'Starting chain refresh…';
+      fetch('/api/momentum/chains/refresh', { method: 'POST' })
+        .then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(d => {
+          if (!d.started) chainStat.textContent = 'A refresh is already running…';
+          if (!chainPoll) chainPoll = setInterval(pollChains, 5000);
+          pollChains();
+        })
+        .catch(() => {
+          chainStat.textContent = 'Refresh failed to start — is the engine live?';
+          chainsBtn.disabled = false; chainsBtn.textContent = 'Refresh chains';
+        });
+    });
+
     // Lookup: where WOULD a symbol rank? (doesn't add it to the watchlist)
     const momoLookupBtn = document.getElementById('momo-lookup-btn');
     if (momoLookupBtn) momoLookupBtn.addEventListener('click', () => {
@@ -3784,6 +3836,7 @@
               ${d.gate.pct_below}% below its 1-yr high. No new entries this month. Cash is a position.</td></tr>`;
             return;
           }
+          chainsAsOf(d.chains);   // stale data labeled stale, never dressed as live
           d.candidates.forEach(c => momoLiquidity[c.ticker] = c.quote);
           // §8.7: skipped rows carry their real-chain quote (when one exists) so
           // the table can show a real "over cap" verdict vs honest "no data".
@@ -3910,12 +3963,15 @@
           }));
           // scorecard — adherence first, P&L second (that's the point)
           const s = b.scorecard, sc = document.getElementById('momo-scorecard');
-          sc.innerHTML = s.n_closed
+          const asof = b.chains && b.chains.newest
+            ? ` <span class="muted" style="font-size:12px">· marks from chains as of ${new Date(b.chains.newest).toLocaleString()}</span>`
+            : (b.open.length ? ' <span class="muted" style="font-size:12px">· no saved chains — marks need a Refresh chains run</span>' : '');
+          sc.innerHTML = (s.n_closed
             ? `<b>Scorecard:</b> rule adherence <b style="color:${s.adherence_pct >= 90 ? 'var(--green)' : 'var(--amber)'}">${s.adherence_pct}%</b>
                (the live-readiness metric) · ${s.n_closed} closed · win rate ${s.win_rate}% ·
                total P&L <span style="color:${s.total_pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${s.total_pnl >= 0 ? '+' : ''}${usd(s.total_pnl)}</span>
                · avg win ${s.avg_win != null ? usd(s.avg_win) : '—'} / avg loss ${s.avg_loss != null ? usd(s.avg_loss) : '—'}`
-            : '<b>Scorecard:</b> no closed paper trades yet — the first full monthly cycle is the goal.';
+            : '<b>Scorecard:</b> no closed paper trades yet — the first full monthly cycle is the goal.') + asof;
           // §5 re-rank alert: held names that fell out of the ranking's top N
           const banner = document.getElementById('momo-rerank');
           const fallen = b.open.filter(p => p.alerts && p.alerts.signal_exit === true).map(p => p.ticker);

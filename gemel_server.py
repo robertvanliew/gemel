@@ -25,6 +25,7 @@ from backtester.momentum_bt import run_momentum_backtest
 from market.service import compute_breadth
 from momo import book as momo_book
 from momo import service as momo_rules
+from scanner import chain_store
 from scanner.chains import mark_spread, spread_quote
 from scanner.momentum import (BUDGET, RR_FLOOR, momentum_leaders, rank_row,
                               regime_gate)
@@ -217,6 +218,32 @@ def momentum_lookup(ticker: str) -> JSONResponse:
     return JSONResponse(row)
 
 
+@app.post("/api/momentum/chains/refresh")
+def chains_refresh(session: Session = Depends(get_session)) -> dict:
+    """§8.5: the ONE place option chains touch the network — a deliberate
+    monthly job. Fetches the top 10 ranked names (with a signal) + every held
+    ticker, jittered 5-10s between requests, exponential-backoff retries, and
+    writes one JSON per ticker to DATA_DIR/chains/. Poll /chains/status."""
+    report = momentum_leaders(make_adapter(),
+                              account_size=MOMENTUM_ACCOUNT_SIZE,
+                              cap_pct=momo_rules.CAP_PCT)
+    top = [r["ticker"] for r in report["leaders"] if not r["no_signal"]][:10]
+    held = momo_book.list_open(session)
+    must: dict[str, list[str]] = {}
+    for p in held:
+        must.setdefault(p.ticker, []).append(p.expiry.isoformat())
+    tickers = list(dict.fromkeys(top + [p.ticker for p in held]))
+    started = chain_store.start_refresh(tickers, must_include=must)
+    return {"started": started, "tickers": tickers,
+            "note": None if started else "a refresh is already running"}
+
+
+@app.get("/api/momentum/chains/status")
+def chains_status() -> dict:
+    """Poll target for the refresh job + a summary of what's on disk."""
+    return {"job": chain_store.job_status(), "store": chain_store.summary()}
+
+
 @app.get("/api/momentum/candidates")
 def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse:
     """This month's qualifying candidates (spec §2): rank on live data, then
@@ -255,6 +282,11 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
         if theme_counts.get(r["theme"], 0) >= momo_rules.MAX_PER_THEME:
             skipped.append({"ticker": r["ticker"], "why": f"theme “{r['theme']}” already at max"})
             continue
+        # §8.5: reads the DISK store only — instant, never rate-limited.
+        if not chain_store.has(r["ticker"]):
+            skipped.append({"ticker": r["ticker"],
+                            "why": "no saved chain — run Refresh chains"})
+            continue
         q = spread_quote(r["ticker"], r["spread"]["long_strike"],
                          budget=BUDGET, cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT,
                          spot=r["spot"])  # §8.4 moneyness ceiling on real strikes
@@ -280,6 +312,7 @@ def momentum_candidates(session: Session = Depends(get_session)) -> JSONResponse
                                                 "roc_252", "roc_63", "data_suspect")},
                            "quote": q})
     return JSONResponse({"candidates": candidates, "skipped": skipped, "gate": gate,
+                         "chains": chain_store.summary(),
                          "playbook": _playbook_config()})
 
 
@@ -359,6 +392,7 @@ def momo_book_view(ranks: str | None = None,
              for p in closed]),
         "playbook": _playbook_config(),
         "regime_gate": _regime_gate(),
+        "chains": chain_store.summary(),
     })
 
 

@@ -197,8 +197,19 @@ def momentum(tickers: str | None = None) -> JSONResponse:
     report = momentum_leaders(make_adapter(), universe,
                               account_size=MOMENTUM_ACCOUNT_SIZE,
                               cap_pct=momo_rules.CAP_PCT)
+    # §8.5/§8.7: reads are free — attach real-strike quotes for every name
+    # whose chain is already on disk, so the Liquidity and Fits-cap columns
+    # fill straight from Rank now. "No data" then only ever means "no saved
+    # chain — run Refresh chains", never "you forgot to click a button".
+    for r in report["leaders"]:
+        if chain_store.has(r["ticker"]):
+            r["quote"] = spread_quote(r["ticker"], r["spread"]["long_strike"],
+                                      budget=BUDGET,
+                                      cap=MOMENTUM_ACCOUNT_SIZE * momo_rules.CAP_PCT,
+                                      spot=r["spot"])
     report["playbook"] = _playbook_config()
     report["regime_gate"] = _regime_gate()
+    report["chains"] = chain_store.summary()
     return JSONResponse(report)
 
 

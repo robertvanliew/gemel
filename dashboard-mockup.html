@@ -3648,7 +3648,7 @@
         return { s: 2, html: '<span style="color:var(--green)" title="Real chain: a width fits the cap at the ask' + (q.stale ? ' (priced at last trade — market closed)' : '') + '">✓</span>' };
       if (q && q.ok === false && (q.reason || '').startsWith('over cap'))
         return { s: 0, html: '<span style="color:var(--red)" title="' + q.reason + ' — from actual listed strikes">✗ untradeable</span>' };
-      return { s: 1, html: '<span class="muted" title="No chain fetched yet — run Find candidates. A verdict needs real strikes; increments are never guessed (§8.7)">no data</span>' };
+      return { s: 1, html: '<span class="muted" title="No saved chain for this name — run Refresh chains. A verdict needs real strikes; increments are never guessed (§8.7)">no data</span>' };
     }
 
     function renderPlaybookBanner(pb) {
@@ -3739,6 +3739,11 @@
           flipLive();
           window.__momo = d;
           momoSort = { k: 'rank', asc: true };  // Rank now resets exploration sorts
+          // §8.5: the ranking payload carries real-strike quotes for every name
+          // with a saved chain — Liquidity + Fits-cap fill straight from Rank now.
+          momoLiquidity = {};
+          d.leaders.forEach(l => { if (l.quote) momoLiquidity[l.ticker] = l.quote; });
+          chainsAsOf(d.chains);
           renderPlaybookBanner(d.playbook);
           renderGate(d.regime_gate);            // §9: gate check comes first
           renderMomoTable();
@@ -3776,7 +3781,8 @@
             if (s.job.state === 'done') {
               const bad = Object.entries(s.job.results || {}).filter(([, r]) => !r.ok);
               chainStat.textContent = `Chains saved (${s.store.count} names` +
-                (bad.length ? `; failed: ${bad.map(([t]) => t).join(', ')}` : '') + ') — run Find candidates.';
+                (bad.length ? `; failed: ${bad.map(([t]) => t).join(', ')}` : '') + ').';
+              loadMomentum();   // re-rank so Liquidity + Fits-cap fill from the new store
             } else { chainStat.textContent = ''; }
             chainsAsOf(s.store);
           }
